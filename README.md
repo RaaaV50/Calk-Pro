@@ -1,48 +1,41 @@
 # Calk-Pro · Inteligência & Simulação Financeira
 
-Aplicação web moderna de planejamento e simulação financeira construída para o mercado brasileiro, combinando **precisão matemática real** com uma interface limpa, responsiva e alternância entre **Modo Claro e Modo Escuro**.
+Ferramenta web minimalista de simulação e planejamento financeiro integrada automaticamente à **API do Banco Central do Brasil (SGS/BCB)** para atualização em tempo real do **CDI, Selic e IPCA**.
 
 ---
 
-## Principais Funcionalidades
+## Módulos
 
-- **Painel de Visão Geral (Dashboard):** acompanhamento da meta patrimonial ativa com curvas interativas de Saldo Líquido, Poder de Compra Real e Patrimônio Bruto contra o Total Investido.
-- **Simulador de Juros Compostos:** cálculo de tabela regressiva de IR **lote a lote** (respeitando o tempo individual de cada aporte mensal) ou isenção de IR, desconto de inflação (IPCA), atalhos de mercado e **compartilhamento por link**.
-- **Comparador CDB vs LCI/LCA vs Poupança:** compara o retorno líquido no horizonte escolhido e calcula automaticamente a **taxa equivalente** entre títulos tributados e isentos.
-- **Viver de Renda (Independência Financeira):** estima o capital necessário para gerar uma renda passiva mensal perpétua preservando o poder de compra e o tempo até atingir o objetivo.
-- **Simulador de Financiamento (SAC vs Price):** compara 1ª e última parcelas, custo efetivo em juros e a economia acumulada entre amortização constante e parcelas fixas.
-- **Cenários Salvos & Backup:** salve múltiplos cenários localmente, alterne qual deles é a meta do painel e exporte/importe backups em `.json`.
-
----
-
-## Tecnologias Utilizadas
-
-- **React 19** + **TypeScript**
-- **Vite 8**
-- **Tailwind CSS v4** (com suporte nativo a tema claro/escuro)
-- **Zustand** (gerenciamento de estado global persistido no `localStorage`)
-- **Recharts** (visualização interativa de dados financeiros)
-- **React Router v7** & **Lucide Icons**
+- **Visão Geral:** painel enxuto de acompanhamento patrimonial (Saldo Líquido, Poder de Compra Real e Bruto) e gestão rápida de cenários salvos.
+- **Juros Compostos Avançado:** indexação por `% do CDI`, `IPCA +` ou `Taxa Fixa`, IR regressivo calculado lote a lote, reajuste anual de aportes pela inflação, crescimento real de aportes, 13º/aporte extra anual, taxa de custódia e meta de tempo.
+- **Comparador Renda Fixa:** comparação simultânea entre CDB, LCI/LCA, Tesouro IPCA+ (com taxa B3) e Poupança, incluindo equivalência tributária automática.
+- **Planejador de Metas & Reserva de Emergência:** cálculo reverso do aporte mensal exato para atingir um objetivo financeiro ou montar o colchão de segurança.
+- **Viver de Renda:** simulação de independência financeira em 3 regimes (renda perpétua, consumo de capital por prazo ou taxa de retirada fixa) e cálculo reverso pela idade alvo.
+- **Financiamento & Amortização Extra:** comparativo SAC vs Price somado ao simulador de amortização mensal extra (economia de juros e meses cortados).
+- **Conversor de Taxas & Juros Reais:** conversão instantânea entre ano, mês e dia útil (base 252), ganho real (equação de Fisher) e equivalência líquida/bruta por faixa de IR.
 
 ---
 
-## Como Executar Localmente
+## Stack
+
+- **React 19** + **TypeScript** + **Vite 8**
+- **Tailwind CSS v4** (Modo Claro / Escuro)
+- **Zustand** (estado persistido no navegador)
+- **Recharts** + **API SGS Banco Central (`api.bcb.gov.br`)**
+
+---
+
+## Execução Local
 
 ```bash
-# Instalar dependências
 npm install
-
-# Rodar servidor de desenvolvimento
 npm run dev
-
-# Gerar build de produção
-npm run build
 ```
 
 ---
 
 ## Autor
 
-Desenvolvido por **Cassio Cortelini**
+**Cassio Cortelini**
 - GitHub: [@RaaaV50](https://github.com/RaaaV50)
 - LinkedIn: [Cassio Cortelini](https://www.linkedin.com/in/cassio-cortelini/)

@@ -1,54 +1,80 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { TAXAS_PADRAO } from '../constants/autor';
+import { TAXAS_INICIAIS } from '../constants/autor';
+import { buscarTaxasBancoCentral } from '../services/apiBancoCentral';
 import type {
   CenarioSalvo,
-  ParametrosJurosCompostos,
-  ResultadoJurosCompostos,
-  TaxasReferencia,
+  ParametrosSimulacao,
+  ResultadoSimulacao,
+  TaxasMercado,
   TemaAplicacao,
 } from '../types/financas';
-import { calcularJurosCompostos } from '../utils/calculosFinanceiros';
+import { calcularSimulacaoCompleta } from '../utils/calculosFinanceiros';
+
+const PARAMETROS_INICIAIS_PADRAO: ParametrosSimulacao = {
+  capitalInicial: 10000,
+  aporteMensal: 1000,
+  aporteExtraAnual: 0,
+  reajustarAporteInflacao: true,
+  crescimentoRealAporteAnual: 0,
+  modeloRentabilidade: 'cdi',
+  taxaInformada: 100,
+  unidadeTaxa: 'anual',
+  periodo: 10,
+  unidadePeriodo: 'anos',
+  inflacaoAnual: TAXAS_INICIAIS.ipcaAnual,
+  taxaCustodiaAnual: 0,
+  tributacao: 'regressivo',
+  metaPatrimonio: 0,
+};
 
 interface MetaAtiva {
   nome: string;
-  parametros: ParametrosJurosCompostos;
-  resultado: ResultadoJurosCompostos;
+  parametros: ParametrosSimulacao;
+  resultado: ResultadoSimulacao;
 }
 
 interface EstadoFinanceiro {
   tema: TemaAplicacao;
-  taxasReferencia: TaxasReferencia;
-  metaAtiva: MetaAtiva | null;
+  taxasMercado: TaxasMercado;
+  sincronizandoBcb: boolean;
+  erroBcb: string | null;
+  metaAtiva: MetaAtiva;
   cenariosSalvos: CenarioSalvo[];
 
   alternarTema: () => void;
-  definirTema: (novoTema: TemaAplicacao) => void;
-  atualizarTaxasReferencia: (novasTaxas: Partial<TaxasReferencia>) => void;
-  restaurarTaxasPadrao: () => void;
+  sincronizarComBancoCentral: (forcar?: boolean) => Promise<void>;
+  atualizarTaxasManuais: (taxas: Partial<Pick<TaxasMercado, 'cdiAnual' | 'selicAnual' | 'ipcaAnual' | 'poupancaMensal'>>) => void;
+  ativarModoAutomaticoBcb: () => Promise<void>;
 
   definirMetaAtiva: (
     nome: string,
-    parametros: ParametrosJurosCompostos,
-    resultado: ResultadoJurosCompostos
+    parametros: ParametrosSimulacao,
+    resultado: ResultadoSimulacao
   ) => void;
   salvarCenario: (
     nome: string,
-    parametros: ParametrosJurosCompostos,
-    resultado: ResultadoJurosCompostos
-  ) => CenarioSalvo;
+    parametros: ParametrosSimulacao,
+    resultado: ResultadoSimulacao
+  ) => void;
   removerCenario: (id: string) => void;
-  importarCenarios: (cenarios: CenarioSalvo[]) => void;
-  carregarExemploDemonstracao: () => void;
-  resetarDados: () => void;
 }
 
 export const useFinanceStore = create<EstadoFinanceiro>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       tema: 'claro',
-      taxasReferencia: TAXAS_PADRAO,
-      metaAtiva: null,
+      taxasMercado: TAXAS_INICIAIS,
+      sincronizandoBcb: false,
+      erroBcb: null,
+      metaAtiva: {
+        nome: 'Projeção Base (100% CDI)',
+        parametros: PARAMETROS_INICIAIS_PADRAO,
+        resultado: calcularSimulacaoCompleta(
+          PARAMETROS_INICIAIS_PADRAO,
+          TAXAS_INICIAIS.cdiAnual
+        ),
+      },
       cenariosSalvos: [],
 
       alternarTema: () =>
@@ -56,108 +82,118 @@ export const useFinanceStore = create<EstadoFinanceiro>()(
           tema: estado.tema === 'claro' ? 'escuro' : 'claro',
         })),
 
-      definirTema: (novoTema) => set({ tema: novoTema }),
+      sincronizarComBancoCentral: async (forcar = false) => {
+        const { taxasMercado, sincronizandoBcb } = get();
+        if (sincronizandoBcb) return;
+        if (!forcar && !taxasMercado.modoAutomaticoBcb) return;
 
-      atualizarTaxasReferencia: (novasTaxas) =>
+        if (!forcar && taxasMercado.ultimaAtualizacao) {
+          const decorridoMs =
+            Date.now() - new Date(taxasMercado.ultimaAtualizacao).getTime();
+          const quatroHorasMs = 4 * 60 * 60 * 1000;
+          if (decorridoMs < quatroHorasMs) return;
+        }
+
+        set({ sincronizandoBcb: true, erroBcb: null });
+
+        try {
+          const dadosBcb = await buscarTaxasBancoCentral();
+          set((estado) => {
+            const novasTaxas: TaxasMercado = {
+              cdiAnual: dadosBcb.cdiAnual,
+              selicAnual: dadosBcb.selicAnual,
+              ipcaAnual: dadosBcb.ipcaAnual,
+              poupancaMensal: dadosBcb.poupancaMensal,
+              modoAutomaticoBcb: true,
+              ultimaAtualizacao: new Date().toISOString(),
+              dataReferenciaBcb: dadosBcb.dataReferencia,
+            };
+
+            const deveAtualizarMetaPadrao =
+              estado.metaAtiva.parametros.modeloRentabilidade === 'cdi' ||
+              estado.metaAtiva.parametros.modeloRentabilidade === 'ipcaMais';
+
+            return {
+              sincronizandoBcb: false,
+              taxasMercado: novasTaxas,
+              metaAtiva: deveAtualizarMetaPadrao
+                ? {
+                    ...estado.metaAtiva,
+                    resultado: calcularSimulacaoCompleta(
+                      estado.metaAtiva.parametros,
+                      novasTaxas.cdiAnual
+                    ),
+                  }
+                : estado.metaAtiva,
+            };
+          });
+        } catch {
+          set({
+            sincronizandoBcb: false,
+            erroBcb: 'Não foi possível consultar o BCB agora.',
+          });
+        }
+      },
+
+      atualizarTaxasManuais: (novas) =>
+        set((estado) => {
+          const taxasAtualizadas: TaxasMercado = {
+            ...estado.taxasMercado,
+            ...novas,
+            modoAutomaticoBcb: false,
+          };
+
+          return {
+            taxasMercado: taxasAtualizadas,
+            metaAtiva: {
+              ...estado.metaAtiva,
+              resultado: calcularSimulacaoCompleta(
+                estado.metaAtiva.parametros,
+                taxasAtualizadas.cdiAnual
+              ),
+            },
+          };
+        }),
+
+      ativarModoAutomaticoBcb: async () => {
         set((estado) => ({
-          taxasReferencia: { ...estado.taxasReferencia, ...novasTaxas },
-        })),
-
-      restaurarTaxasPadrao: () => set({ taxasReferencia: TAXAS_PADRAO }),
+          taxasMercado: { ...estado.taxasMercado, modoAutomaticoBcb: true },
+        }));
+        await get().sincronizarComBancoCentral(true);
+      },
 
       definirMetaAtiva: (nome, parametros, resultado) =>
         set({
-          metaAtiva: { nome, parametros, resultado },
+          metaAtiva: { nome: nome.trim() || 'Meta Principal', parametros, resultado },
         }),
 
-      salvarCenario: (nome, parametros, resultado) => {
-        const novoCenario: CenarioSalvo = {
-          id: crypto.randomUUID(),
-          nome: nome.trim() || 'Simulação Personalizada',
-          criadoEm: new Date().toISOString(),
-          parametros,
-          resultado,
-        };
-
+      salvarCenario: (nome, parametros, resultado) =>
         set((estado) => ({
-          cenariosSalvos: [novoCenario, ...estado.cenariosSalvos],
-        }));
-
-        return novoCenario;
-      },
-
-      removerCenario: (id) =>
-        set((estado) => ({
-          cenariosSalvos: estado.cenariosSalvos.filter((cenario) => cenario.id !== id),
-        })),
-
-      importarCenarios: (cenarios) =>
-        set({
-          cenariosSalvos: cenarios,
-        }),
-
-      carregarExemploDemonstracao: () => {
-        const parametrosLiberdade: ParametrosJurosCompostos = {
-          capitalInicial: 10000,
-          aporteMensal: 1200,
-          taxa: 12.5,
-          unidadeTaxa: 'anual',
-          periodo: 15,
-          unidadePeriodo: 'anos',
-          inflacaoAnual: 4.5,
-          tributacao: 'regressivo',
-        };
-
-        const parametrosReserva: ParametrosJurosCompostos = {
-          capitalInicial: 5000,
-          aporteMensal: 600,
-          taxa: 11.2,
-          unidadeTaxa: 'anual',
-          periodo: 4,
-          unidadePeriodo: 'anos',
-          inflacaoAnual: 4.5,
-          tributacao: 'isento',
-        };
-
-        const resultadoLiberdade = calcularJurosCompostos(parametrosLiberdade);
-        const resultadoReserva = calcularJurosCompostos(parametrosReserva);
-        const agora = new Date().toISOString();
-
-        set({
-          metaAtiva: {
-            nome: 'Plano Construção de Patrimônio (15 anos)',
-            parametros: parametrosLiberdade,
-            resultado: resultadoLiberdade,
-          },
           cenariosSalvos: [
             {
               id: crypto.randomUUID(),
-              nome: 'Plano Construção de Patrimônio (15 anos)',
-              criadoEm: agora,
-              parametros: parametrosLiberdade,
-              resultado: resultadoLiberdade,
+              nome: nome.trim() || `Cenário ${estado.cenariosSalvos.length + 1}`,
+              criadoEm: new Date().toISOString(),
+              parametros,
+              resultado,
             },
-            {
-              id: crypto.randomUUID(),
-              nome: 'Médio Prazo Isento — LCI/LCA (4 anos)',
-              criadoEm: agora,
-              parametros: parametrosReserva,
-              resultado: resultadoReserva,
-            },
+            ...estado.cenariosSalvos,
           ],
-        });
-      },
+        })),
 
-      resetarDados: () =>
-        set({
-          metaAtiva: null,
-          cenariosSalvos: [],
-          taxasReferencia: TAXAS_PADRAO,
-        }),
+      removerCenario: (id) =>
+        set((estado) => ({
+          cenariosSalvos: estado.cenariosSalvos.filter((item) => item.id !== id),
+        })),
     }),
     {
-      name: 'calk-pro-storage-v2',
+      name: 'calk-pro-storage-v3',
+      partialize: (estado) => ({
+        tema: estado.tema,
+        taxasMercado: estado.taxasMercado,
+        metaAtiva: estado.metaAtiva,
+        cenariosSalvos: estado.cenariosSalvos,
+      }),
     }
   )
 );
-

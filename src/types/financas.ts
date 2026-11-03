@@ -1,94 +1,113 @@
 export type TemaAplicacao = 'claro' | 'escuro';
 
-export type TipoTributacao = 'regressivo' | 'isento';
+export type TipoTributacao = 'regressivo' | 'isento' | 'fixo15';
+
+export type ModeloRentabilidade = 'fixa' | 'cdi' | 'ipcaMais';
 
 export type UnidadePeriodo = 'anos' | 'meses';
 
 export type UnidadeTaxa = 'anual' | 'mensal';
 
-export interface PontoEvolucaoAnual {
-  ano: number;
+export interface TaxasMercado {
+  cdiAnual: number;
+  selicAnual: number;
+  ipcaAnual: number;
+  poupancaMensal: number;
+  modoAutomaticoBcb: boolean;
+  ultimaAtualizacao: string | null;
+  dataReferenciaBcb: string | null;
+}
+
+export interface PontoEvolucao {
+  periodo: number;
   rotulo: string;
   investido: number;
   patrimonioBruto: number;
   patrimonioLiquido: number;
   poderDeCompraReal: number;
-  jurosBrutos: number;
+  jurosLiquidos: number;
 }
 
-export interface ParametrosJurosCompostos {
+export interface ParametrosSimulacao {
   capitalInicial: number;
   aporteMensal: number;
-  taxa: number;
+  aporteExtraAnual: number;
+  reajustarAporteInflacao: boolean;
+  crescimentoRealAporteAnual: number;
+  modeloRentabilidade: ModeloRentabilidade;
+  taxaInformada: number;
   unidadeTaxa: UnidadeTaxa;
   periodo: number;
   unidadePeriodo: UnidadePeriodo;
   inflacaoAnual: number;
+  taxaCustodiaAnual: number;
   tributacao: TipoTributacao;
+  metaPatrimonio: number;
 }
 
-export interface ResultadoJurosCompostos {
+export interface ResultadoSimulacao {
   valorBruto: number;
   totalInvestido: number;
   jurosBrutos: number;
   valorImposto: number;
+  custoCustodiaTotal: number;
   aliquotaEfetiva: number;
   saldoLiquido: number;
+  jurosLiquidos: number;
   poderDeCompraReal: number;
+  taxaEfetivaAnualBruta: number;
   taxaRealAnual: number;
   totalMeses: number;
-  historico: PontoEvolucaoAnual[];
+  mesAtingiuMeta: number | null;
+  historico: PontoEvolucao[];
 }
 
 export interface CenarioSalvo {
   id: string;
   nome: string;
   criadoEm: string;
-  parametros: ParametrosJurosCompostos;
-  resultado: ResultadoJurosCompostos;
+  parametros: ParametrosSimulacao;
+  resultado: ResultadoSimulacao;
 }
 
-export interface TaxasReferencia {
-  cdiAnual: number;
-  ipcaAnual: number;
-  poupancaMensal: number;
-}
-
-export interface OpcaoRendaFixa {
+export interface ItemComparativoRendaFixa {
+  id: string;
   nome: string;
-  subtitulo: string;
+  detalhe: string;
   saldoBruto: number;
   imposto: number;
   saldoLiquido: number;
   ganhoLiquido: number;
-  rentabilidadeLiquidaAnual: number;
-  destaque: boolean;
+  poderReal: number;
+  taxaLiquidaAnual: number;
+  melhorOpcao: boolean;
 }
 
-export interface ResultadoComparativoRendaFixa {
+export interface ResultadoComparativo {
   totalInvestido: number;
-  cdbEquivalenteParaLci: number;
-  lciEquivalenteParaCdb: number;
-  aliquotaIrAplicada: number;
-  opcoes: OpcaoRendaFixa[];
-  evolucaoComparativa: {
-    mes: number;
+  aliquotaIrPrazo: number;
+  cdbEquivalenteDaLci: number;
+  lciEquivalenteDoCdb: number;
+  itens: ItemComparativoRendaFixa[];
+  evolucao: {
     rotulo: string;
-    cdbLiquido: number;
-    lciLiquida: number;
+    cdb: number;
+    lci: number;
+    ipcaMais: number;
     poupanca: number;
   }[];
 }
+
+export type ModoUsufruto = 'perpetuo' | 'consumirCapital' | 'taxaFixa';
 
 export interface ResultadoIndependencia {
   patrimonioNecessario: number;
   rendaMensalDesejada: number;
   taxaRealAnual: number;
-  taxaRealMensal: number;
-  mesesParaAtingir: number | null;
-  anosParaAtingir: number | null;
-  totalAportadoAteMeta: number;
-  patrimonioFinalEstimado: number;
+  mesesParaMeta: number | null;
+  idadeNaMeta: number | null;
+  aporteNecessarioIdadeAlvo: number | null;
+  totalAportado: number;
   evolucao: {
     ano: number;
     rotulo: string;
@@ -98,27 +117,39 @@ export interface ResultadoIndependencia {
   }[];
 }
 
-export interface ResumoSistemaAmortizacao {
-  sistema: 'SAC' | 'PRICE';
+export interface ResumoAmortizacao {
   primeiraParcela: number;
   ultimaParcela: number;
   totalPago: number;
   totalJuros: number;
+  mesesQuitacao: number;
 }
 
 export interface ResultadoFinanciamento {
   valorFinanciado: number;
-  totalMeses: number;
-  sac: ResumoSistemaAmortizacao;
-  price: ResumoSistemaAmortizacao;
-  economiaSac: number;
-  evolucaoAnual: {
-    ano: number;
+  prazoOriginalMeses: number;
+  sac: ResumoAmortizacao;
+  price: ResumoAmortizacao;
+  sacComExtra: ResumoAmortizacao;
+  economiaSacSobrePrice: number;
+  economiaAmortizacaoExtra: number;
+  mesesEconomizadosExtra: number;
+  evolucaoSaldo: {
     rotulo: string;
     saldoSac: number;
     saldoPrice: number;
-    parcelaSac: number;
-    parcelaPrice: number;
+    saldoSacExtra: number;
   }[];
 }
 
+export interface ResultadoMetaReversa {
+  aporteMensalNecessario: number;
+  totalAportado: number;
+  rendimentoLiquido: number;
+  valorMetaNominal: number;
+  evolucao: {
+    rotulo: string;
+    saldoLiquido: number;
+    investido: number;
+  }[];
+}

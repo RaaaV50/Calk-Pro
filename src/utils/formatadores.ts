@@ -15,6 +15,11 @@ const formatadorDecimal = new Intl.NumberFormat('pt-BR', {
   maximumFractionDigits: 2,
 });
 
+const formatadorPreciso = new Intl.NumberFormat('pt-BR', {
+  minimumFractionDigits: 4,
+  maximumFractionDigits: 4,
+});
+
 export function formatarMoeda(valor: number): string {
   if (!Number.isFinite(valor)) return 'R$ 0,00';
   return formatadorBrl.format(valor);
@@ -30,6 +35,11 @@ export function formatarPercentual(valor: number): string {
   return `${formatadorDecimal.format(valor)}%`;
 }
 
+export function formatarPercentualPreciso(valor: number): string {
+  if (!Number.isFinite(valor)) return '0,0000%';
+  return `${formatadorPreciso.format(valor)}%`;
+}
+
 export function converterNumero(texto: string | number, padrao = 0): number {
   if (typeof texto === 'number') {
     return Number.isFinite(texto) ? texto : padrao;
@@ -41,12 +51,11 @@ export function converterNumero(texto: string | number, padrao = 0): number {
 }
 
 export function formatarPrazoMeses(totalMeses: number): string {
-  if (totalMeses <= 0) return 'Meta já atingida';
+  if (totalMeses <= 0) return 'Imediato';
   const anos = Math.floor(totalMeses / 12);
   const meses = totalMeses % 12;
 
   if (anos === 0) return `${meses} ${meses === 1 ? 'mês' : 'meses'}`;
   if (meses === 0) return `${anos} ${anos === 1 ? 'ano' : 'anos'}`;
-  return `${anos} ${anos === 1 ? 'ano' : 'anos'} e ${meses} ${meses === 1 ? 'mês' : 'meses'}`;
+  return `${anos}a ${meses}m`;
 }
-

@@ -2,18 +2,18 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import MainLayout from './layouts/MainLayout';
 
-const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Simulador = lazy(() => import('./pages/Simulador'));
 const ComparadorRendaFixa = lazy(() => import('./pages/ComparadorRendaFixa'));
+const PlanejadorMetas = lazy(() => import('./pages/PlanejadorMetas'));
 const IndependenciaFinanceira = lazy(() => import('./pages/IndependenciaFinanceira'));
 const Financiamento = lazy(() => import('./pages/Financiamento'));
-const CenariosSalvos = lazy(() => import('./pages/CenariosSalvos'));
-const Configuracoes = lazy(() => import('./pages/Configuracoes'));
+const ConversorTaxas = lazy(() => import('./pages/ConversorTaxas'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
 
-function CarregandoPagina() {
+function Carregando() {
   return (
-    <div className="h-64 flex items-center justify-center text-sm font-medium text-zinc-400">
-      Carregando módulo...
+    <div className="h-64 flex items-center justify-center text-xs font-semibold text-slate-400">
+      Carregando calculadora...
     </div>
   );
 }
@@ -22,17 +22,17 @@ export default function App() {
   return (
     <BrowserRouter>
       <MainLayout>
-        <Suspense fallback={<CarregandoPagina />}>
+        <Suspense fallback={<Carregando />}>
           <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/cenarios" element={<CenariosSalvos />} />
+            <Route path="/" element={<Navigate to="/simulador" replace />} />
             <Route path="/simulador" element={<Simulador />} />
-            <Route path="/renda-fixa" element={<ComparadorRendaFixa />} />
+            <Route path="/comparador" element={<ComparadorRendaFixa />} />
+            <Route path="/metas" element={<PlanejadorMetas />} />
             <Route path="/independencia" element={<IndependenciaFinanceira />} />
             <Route path="/financiamento" element={<Financiamento />} />
-            <Route path="/configuracoes" element={<Configuracoes />} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/conversor" element={<ConversorTaxas />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="*" element={<Navigate to="/simulador" replace />} />
           </Routes>
         </Suspense>
       </MainLayout>

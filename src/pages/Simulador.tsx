@@ -1,13 +1,12 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  BookmarkPlus,
-  Calculator,
+  Bookmark,
   Check,
-  FileSpreadsheet,
+  ChevronDown,
+  Pin,
   Share2,
-  ShieldCheck,
-  Target,
+  SlidersHorizontal,
 } from 'lucide-react';
 import {
   Area,
@@ -22,34 +21,39 @@ import { CabecalhoPagina } from '../components/CabecalhoPagina';
 import { CampoNumerico } from '../components/CampoNumerico';
 import { useFinanceStore } from '../store/useFinanceStore';
 import type {
-  ParametrosJurosCompostos,
+  ModeloRentabilidade,
+  ParametrosSimulacao,
   TipoTributacao,
   UnidadePeriodo,
   UnidadeTaxa,
 } from '../types/financas';
-import { calcularJurosCompostos } from '../utils/calculosFinanceiros';
+import { calcularSimulacaoCompleta } from '../utils/calculosFinanceiros';
 import {
   converterNumero,
   formatarMoeda,
   formatarMoedaCompacta,
   formatarPercentual,
+  formatarPrazoMeses,
 } from '../utils/formatadores';
 
 export default function Simulador() {
   const [parametrosUrl, setParametrosUrl] = useSearchParams();
-  const taxasReferencia = useFinanceStore((estado) => estado.taxasReferencia);
+  const taxasMercado = useFinanceStore((estado) => estado.taxasMercado);
   const tema = useFinanceStore((estado) => estado.tema);
   const definirMetaAtiva = useFinanceStore((estado) => estado.definirMetaAtiva);
   const salvarCenario = useFinanceStore((estado) => estado.salvarCenario);
 
   const [capitalInicial, setCapitalInicial] = useState(
-    parametrosUrl.get('inicial') ?? '5000'
+    parametrosUrl.get('inicial') ?? '10000'
   );
   const [aporteMensal, setAporteMensal] = useState(
-    parametrosUrl.get('aporte') ?? '800'
+    parametrosUrl.get('aporte') ?? '1000'
   );
-  const [taxa, setTaxa] = useState(
-    parametrosUrl.get('taxa') ?? String(taxasReferencia.cdiAnual)
+  const [modeloRentabilidade, setModeloRentabilidade] = useState<ModeloRentabilidade>(
+    (parametrosUrl.get('modelo') as ModeloRentabilidade) || 'cdi'
+  );
+  const [taxaInformada, setTaxaInformada] = useState(
+    parametrosUrl.get('taxa') ?? '100'
   );
   const [unidadeTaxa, setUnidadeTaxa] = useState<UnidadeTaxa>(
     (parametrosUrl.get('utaxa') as UnidadeTaxa) || 'anual'
@@ -58,181 +62,191 @@ export default function Simulador() {
   const [unidadePeriodo, setUnidadePeriodo] = useState<UnidadePeriodo>(
     (parametrosUrl.get('uperiodo') as UnidadePeriodo) || 'anos'
   );
-  const [inflacaoAnual, setInflacaoAnual] = useState(
-    parametrosUrl.get('inflacao') ?? String(taxasReferencia.ipcaAnual)
-  );
   const [tributacao, setTributacao] = useState<TipoTributacao>(
     (parametrosUrl.get('ir') as TipoTributacao) || 'regressivo'
   );
 
-  const [nomeCenario, setNomeCenario] = useState('');
-  const [avisoAcao, setAvisoAcao] = useState<string | null>(null);
+  const [mostrarAvancado, setMostrarAvancado] = useState(false);
+  const [reajustarAporteInflacao, setReajustarAporteInflacao] = useState(false);
+  const [crescimentoRealAporteAnual, setCrescimentoRealAporteAnual] = useState('0');
+  const [aporteExtraAnual, setAporteExtraAnual] = useState('0');
+  const [taxaCustodiaAnual, setTaxaCustodiaAnual] = useState('0');
+  const [inflacaoCustomizada, setInflacaoCustomizada] = useState<string | null>(
+    parametrosUrl.get('inflacao')
+  );
+  const [metaPatrimonio, setMetaPatrimonio] = useState('0');
 
-  const parametrosCalculo: ParametrosJurosCompostos = useMemo(
+  const [abaVisualizacao, setAbaVisualizacao] = useState<'grafico' | 'tabela'>('grafico');
+  const [nomeCenario, setNomeCenario] = useState('');
+  const [feedback, setFeedback] = useState<string | null>(null);
+
+  const inflacaoEfetiva =
+    inflacaoCustomizada !== null
+      ? converterNumero(inflacaoCustomizada, taxasMercado.ipcaAnual)
+      : taxasMercado.ipcaAnual;
+
+  const parametros: ParametrosSimulacao = useMemo(
     () => ({
       capitalInicial: converterNumero(capitalInicial, 0),
       aporteMensal: converterNumero(aporteMensal, 0),
-      taxa: converterNumero(taxa, 0),
+      aporteExtraAnual: converterNumero(aporteExtraAnual, 0),
+      reajustarAporteInflacao,
+      crescimentoRealAporteAnual: converterNumero(crescimentoRealAporteAnual, 0),
+      modeloRentabilidade,
+      taxaInformada: converterNumero(taxaInformada, 0),
       unidadeTaxa,
       periodo: Math.max(1, converterNumero(periodo, 1)),
       unidadePeriodo,
-      inflacaoAnual: converterNumero(inflacaoAnual, 0),
+      inflacaoAnual: inflacaoEfetiva,
+      taxaCustodiaAnual: converterNumero(taxaCustodiaAnual, 0),
       tributacao,
+      metaPatrimonio: converterNumero(metaPatrimonio, 0),
     }),
     [
       capitalInicial,
       aporteMensal,
-      taxa,
+      aporteExtraAnual,
+      reajustarAporteInflacao,
+      crescimentoRealAporteAnual,
+      modeloRentabilidade,
+      taxaInformada,
       unidadeTaxa,
       periodo,
       unidadePeriodo,
-      inflacaoAnual,
+      inflacaoEfetiva,
+      taxaCustodiaAnual,
       tributacao,
+      metaPatrimonio,
     ]
   );
 
   const resultado = useMemo(
-    () => calcularJurosCompostos(parametrosCalculo),
-    [parametrosCalculo]
+    () => calcularSimulacaoCompleta(parametros, taxasMercado.cdiAnual),
+    [parametros, taxasMercado.cdiAnual]
   );
 
-  const exibirFeedback = (mensagem: string) => {
-    setAvisoAcao(mensagem);
+  const trocarModelo = (novo: ModeloRentabilidade) => {
+    setModeloRentabilidade(novo);
+    if (novo === 'cdi') setTaxaInformada('100');
+    else if (novo === 'ipcaMais') setTaxaInformada('6.5');
+    else {
+      setTaxaInformada(String(taxasMercado.cdiAnual));
+      setUnidadeTaxa('anual');
+    }
+  };
+
+  const notificar = (texto: string) => {
+    setFeedback(texto);
     window.setTimeout(() => {
-      setAvisoAcao((atual) => (atual === mensagem ? null : atual));
-    }, 2800);
+      setFeedback((atual) => (atual === texto ? null : atual));
+    }, 2500);
   };
 
-  const aplicarAtalhoTaxa = (tipo: 'cdi' | 'lci' | 'ipcaMais' | 'poupanca') => {
-    if (tipo === 'cdi') {
-      setTaxa(String(taxasReferencia.cdiAnual));
-      setUnidadeTaxa('anual');
-      setTributacao('regressivo');
-    } else if (tipo === 'lci') {
-      const taxaLci = Number((taxasReferencia.cdiAnual * 0.92).toFixed(2));
-      setTaxa(String(taxaLci));
-      setUnidadeTaxa('anual');
-      setTributacao('isento');
-    } else if (tipo === 'ipcaMais') {
-      const taxaComposta =
-        ((1 + taxasReferencia.ipcaAnual / 100) * (1 + 0.065) - 1) * 100;
-      setTaxa(taxaComposta.toFixed(2));
-      setUnidadeTaxa('anual');
-      setTributacao('regressivo');
-    } else {
-      setTaxa(String(taxasReferencia.poupancaMensal));
-      setUnidadeTaxa('mensal');
-      setTributacao('isento');
-    }
+  const gerarTitulo = () => {
+    if (nomeCenario.trim()) return nomeCenario.trim();
+    const sufixoPrazo = `${periodo}${unidadePeriodo === 'anos' ? 'a' : 'm'}`;
+    if (modeloRentabilidade === 'cdi') return `${taxaInformada}% CDI · ${sufixoPrazo}`;
+    if (modeloRentabilidade === 'ipcaMais') return `IPCA + ${taxaInformada}% · ${sufixoPrazo}`;
+    return `Taxa ${taxaInformada}% · ${sufixoPrazo}`;
   };
 
-  const handleDefinirMeta = () => {
-    const titulo =
-      nomeCenario.trim() ||
-      `Meta (${periodo} ${unidadePeriodo === 'anos' ? 'anos' : 'meses'})`;
-    definirMetaAtiva(titulo, parametrosCalculo, resultado);
-    exibirFeedback('Meta atualizada no Dashboard!');
-  };
-
-  const handleSalvarCenario = () => {
-    const titulo =
-      nomeCenario.trim() ||
-      `Simulação ${periodo}${unidadePeriodo === 'anos' ? 'a' : 'm'} · ${taxa}%`;
-    salvarCenario(titulo, parametrosCalculo, resultado);
+  const handleSalvar = () => {
+    salvarCenario(gerarTitulo(), parametros, resultado);
     setNomeCenario('');
-    exibirFeedback('Cenário salvo em "Cenários Salvos"!');
+    notificar('Cenário salvo no Painel');
   };
 
-  const handleCompartilharLink = async () => {
-    const novosParams = new URLSearchParams({
-      inicial: String(parametrosCalculo.capitalInicial),
-      aporte: String(parametrosCalculo.aporteMensal),
-      taxa: String(parametrosCalculo.taxa),
-      utaxa: parametrosCalculo.unidadeTaxa,
-      periodo: String(parametrosCalculo.periodo),
-      uperiodo: parametrosCalculo.unidadePeriodo,
-      inflacao: String(parametrosCalculo.inflacaoAnual),
-      ir: parametrosCalculo.tributacao,
-    });
-    setParametrosUrl(novosParams, { replace: true });
-    const urlCompleta = `${window.location.origin}${window.location.pathname}?${novosParams.toString()}`;
+  const handleFixar = () => {
+    definirMetaAtiva(gerarTitulo(), parametros, resultado);
+    notificar('Fixado no Painel');
+  };
 
+  const handleCompartilhar = async () => {
+    const query = new URLSearchParams({
+      inicial: String(parametros.capitalInicial),
+      aporte: String(parametros.aporteMensal),
+      modelo: parametros.modeloRentabilidade,
+      taxa: String(parametros.taxaInformada),
+      utaxa: parametros.unidadeTaxa,
+      periodo: String(parametros.periodo),
+      uperiodo: parametros.unidadePeriodo,
+      inflacao: String(parametros.inflacaoAnual),
+      ir: parametros.tributacao,
+    });
+    setParametrosUrl(query, { replace: true });
+    const url = `${window.location.origin}${window.location.pathname}?${query.toString()}`;
     try {
-      await navigator.clipboard.writeText(urlCompleta);
-      exibirFeedback('Link da simulação copiado!');
+      await navigator.clipboard.writeText(url);
+      notificar('Link copiado!');
     } catch {
-      exibirFeedback('URL atualizada na barra de endereços!');
+      notificar('URL atualizada');
     }
   };
 
-  const baseTotal = Math.max(1, resultado.valorBruto);
-  const fatiaInvestido = (resultado.totalInvestido / baseTotal) * 100;
-  const fatiaJurosLiquidos =
-    (Math.max(0, resultado.jurosBrutos - resultado.valorImposto) / baseTotal) * 100;
-  const fatiaImposto = (resultado.valorImposto / baseTotal) * 100;
+  const totalBruto = Math.max(1, resultado.valorBruto);
+  const pctInvestido = (resultado.totalInvestido / totalBruto) * 100;
+  const pctJuros = (Math.max(0, resultado.jurosLiquidos) / totalBruto) * 100;
+  const pctImposto = (resultado.valorImposto / totalBruto) * 100;
+  const multiplicadorCapital =
+    resultado.totalInvestido > 0
+      ? resultado.saldoLiquido / resultado.totalInvestido
+      : 1;
 
-  const corGrade = tema === 'escuro' ? '#27272a' : '#e4e4e7';
+  const corGrade = tema === 'escuro' ? '#27272a' : '#f1f5f9';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
       <CabecalhoPagina
-        titulo="Simulador de Juros Compostos"
-        descricao="Projeção patrimonial com cálculo preciso de IR regressivo por aporte e desconto de inflação."
-        icone={<Calculator size={22} />}
+        categoria="Simulador de Patrimônio"
+        titulo="Juros Compostos"
+        descricao="Simule rendimentos indexados ao CDI, IPCA+ ou taxa fixa, com cálculo real de IR regressivo por aporte."
         acoes={
-          <button
-            type="button"
-            onClick={handleCompartilharLink}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-xs font-semibold text-zinc-700 dark:text-zinc-200 transition-colors cursor-pointer"
-          >
-            <Share2 size={15} />
-            Compartilhar Simulação
-          </button>
+          <div className="flex items-center gap-2.5">
+            {feedback && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/12 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
+                <Check size={14} />
+                {feedback}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={handleCompartilhar}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-slate-50 dark:hover:bg-zinc-800 text-xs font-semibold text-slate-700 dark:text-zinc-200 shadow-2xs transition-colors cursor-pointer"
+            >
+              <Share2 size={14} />
+              Compartilhar Link
+            </button>
+          </div>
         }
       />
 
-      {avisoAcao && (
-        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-sm font-semibold">
-          <Check size={16} />
-          <span>{avisoAcao}</span>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        <div className="lg:col-span-5 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-900 p-6 shadow-xs space-y-5">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-7 items-start">
+        <div className="lg:col-span-5 lg:sticky lg:top-24 rounded-3xl border border-slate-200/80 dark:border-zinc-800/90 bg-white dark:bg-zinc-900/90 p-6 sm:p-7 shadow-xs space-y-5">
           <div>
-            <span className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">
-              Atalhos de Mercado
-            </span>
-            <div className="flex flex-wrap gap-1.5">
-              <button
-                type="button"
-                onClick={() => aplicarAtalhoTaxa('cdi')}
-                className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-zinc-100 hover:bg-emerald-500/15 hover:text-emerald-700 dark:bg-zinc-800 dark:hover:bg-emerald-500/20 dark:hover:text-emerald-300 text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer"
-              >
-                100% CDI
-              </button>
-              <button
-                type="button"
-                onClick={() => aplicarAtalhoTaxa('lci')}
-                className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-zinc-100 hover:bg-emerald-500/15 hover:text-emerald-700 dark:bg-zinc-800 dark:hover:bg-emerald-500/20 dark:hover:text-emerald-300 text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer"
-              >
-                LCI 92% CDI (Isento)
-              </button>
-              <button
-                type="button"
-                onClick={() => aplicarAtalhoTaxa('ipcaMais')}
-                className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-zinc-100 hover:bg-emerald-500/15 hover:text-emerald-700 dark:bg-zinc-800 dark:hover:bg-emerald-500/20 dark:hover:text-emerald-300 text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer"
-              >
-                IPCA + 6,5%
-              </button>
-              <button
-                type="button"
-                onClick={() => aplicarAtalhoTaxa('poupanca')}
-                className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-zinc-100 hover:bg-emerald-500/15 hover:text-emerald-700 dark:bg-zinc-800 dark:hover:bg-emerald-500/20 dark:hover:text-emerald-300 text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer"
-              >
-                Poupança
-              </button>
+            <label className="block text-[13px] font-semibold text-slate-700 dark:text-zinc-300 mb-2">
+              Modelo de Rentabilidade
+            </label>
+            <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-slate-100 dark:bg-zinc-950 border border-slate-200/60 dark:border-zinc-800">
+              {(
+                [
+                  ['cdi', '% do CDI'],
+                  ['ipcaMais', 'IPCA +'],
+                  ['fixa', 'Taxa Fixa'],
+                ] as const
+              ).map(([chave, rotulo]) => (
+                <button
+                  key={chave}
+                  type="button"
+                  onClick={() => trocarModelo(chave)}
+                  className={`py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    modeloRentabilidade === chave
+                      ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs'
+                      : 'text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200'
+                  }`}
+                >
+                  {rotulo}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -240,332 +254,453 @@ export default function Simulador() {
             <CampoNumerico
               rotulo="Valor Inicial"
               prefixo="R$"
-              step="100"
+              step="500"
               min="0"
               valor={capitalInicial}
               aoAlterar={setCapitalInicial}
             />
-
             <CampoNumerico
               rotulo="Aporte Mensal"
               prefixo="R$"
-              step="50"
+              step="100"
               min="0"
               valor={aporteMensal}
               aoAlterar={setAporteMensal}
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <CampoNumerico
-              rotulo="Taxa de Juros"
-              step="0.01"
-              min="0"
-              valor={taxa}
-              aoAlterar={setTaxa}
-              sufixo={
+          <CampoNumerico
+            rotulo={
+              modeloRentabilidade === 'cdi'
+                ? `Rentabilidade (${formatarPercentual(resultado.taxaEfetivaAnualBruta)} a.a. bruta)`
+                : modeloRentabilidade === 'ipcaMais'
+                  ? `Taxa Prefixada Acima do IPCA (${formatarPercentual(resultado.taxaEfetivaAnualBruta)} a.a.)`
+                  : 'Taxa de Juros'
+            }
+            step={modeloRentabilidade === 'cdi' ? '1' : '0.1'}
+            min="0"
+            valor={taxaInformada}
+            aoAlterar={setTaxaInformada}
+            slider={
+              modeloRentabilidade === 'cdi'
+                ? { min: 70, max: 140, passo: 1 }
+                : modeloRentabilidade === 'ipcaMais'
+                  ? { min: 3, max: 10, passo: 0.25 }
+                  : undefined
+            }
+            sufixo={
+              modeloRentabilidade === 'cdi' ? (
+                '% do CDI'
+              ) : modeloRentabilidade === 'ipcaMais' ? (
+                '% a.a.'
+              ) : (
                 <button
                   type="button"
                   onClick={() =>
-                    setUnidadeTaxa((atual) => (atual === 'anual' ? 'mensal' : 'anual'))
+                    setUnidadeTaxa((u) => (u === 'anual' ? 'mensal' : 'anual'))
                   }
-                  className="px-2 py-1 rounded-lg bg-zinc-200/70 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-300/70 dark:hover:bg-zinc-700 font-semibold cursor-pointer"
-                  title="Alternar entre taxa anual e mensal"
+                  className="px-2 py-1 rounded-lg bg-slate-200/70 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 font-bold cursor-pointer"
                 >
                   {unidadeTaxa === 'anual' ? '% a.a.' : '% a.m.'}
                 </button>
-              }
-            />
-
-            <CampoNumerico
-              rotulo="Período"
-              step="1"
-              min="1"
-              valor={periodo}
-              aoAlterar={setPeriodo}
-              sufixo={
-                <button
-                  type="button"
-                  onClick={() =>
-                    setUnidadePeriodo((atual) => (atual === 'anos' ? 'meses' : 'anos'))
-                  }
-                  className="px-2 py-1 rounded-lg bg-zinc-200/70 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-300/70 dark:hover:bg-zinc-700 font-semibold cursor-pointer"
-                  title="Alternar entre anos e meses"
-                >
-                  {unidadePeriodo === 'anos' ? 'Anos' : 'Meses'}
-                </button>
-              }
-            />
-          </div>
+              )
+            }
+          />
 
           <CampoNumerico
-            rotulo="Inflação Estimada (IPCA)"
-            step="0.1"
-            min="0"
-            valor={inflacaoAnual}
-            aoAlterar={setInflacaoAnual}
-            sufixo="% a.a."
-            dica="Usada para calcular o Poder de Compra Real nos valores de hoje."
+            rotulo="Prazo de Investimento"
+            step="1"
+            min="1"
+            valor={periodo}
+            aoAlterar={setPeriodo}
+            slider={
+              unidadePeriodo === 'anos'
+                ? { min: 1, max: 40, passo: 1 }
+                : { min: 1, max: 120, passo: 1 }
+            }
+            sufixo={
+              <button
+                type="button"
+                onClick={() =>
+                  setUnidadePeriodo((u) => (u === 'anos' ? 'meses' : 'anos'))
+                }
+                className="px-2 py-1 rounded-lg bg-slate-200/70 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 font-bold cursor-pointer"
+              >
+                {unidadePeriodo === 'anos' ? 'Anos' : 'Meses'}
+              </button>
+            }
           />
 
           <div>
-            <span className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
-              Regime de Imposto de Renda
-            </span>
-            <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-zinc-100 dark:bg-zinc-800/70">
-              <button
-                type="button"
-                onClick={() => setTributacao('regressivo')}
-                className={`py-2 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  tributacao === 'regressivo'
-                    ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-xs'
-                    : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'
-                }`}
-              >
-                Tabela Regressiva
-              </button>
-              <button
-                type="button"
-                onClick={() => setTributacao('isento')}
-                className={`py-2 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  tributacao === 'isento'
-                    ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-xs'
-                    : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'
-                }`}
-              >
-                Isento (LCI / LCA)
-              </button>
+            <label className="block text-[13px] font-semibold text-slate-700 dark:text-zinc-300 mb-2">
+              Imposto de Renda
+            </label>
+            <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-slate-100 dark:bg-zinc-950 border border-slate-200/60 dark:border-zinc-800">
+              {(
+                [
+                  ['regressivo', 'Regressivo'],
+                  ['isento', 'Isento'],
+                  ['fixo15', 'Fixo 15%'],
+                ] as const
+              ).map(([chave, rotulo]) => (
+                <button
+                  key={chave}
+                  type="button"
+                  onClick={() => setTributacao(chave)}
+                  className={`py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    tributacao === chave
+                      ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs'
+                      : 'text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200'
+                  }`}
+                >
+                  {rotulo}
+                </button>
+              ))}
             </div>
           </div>
 
-          <div className="pt-3 border-t border-zinc-200/80 dark:border-zinc-800/80 space-y-3">
+          <div className="rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-950/40 px-4 py-3">
+            <button
+              type="button"
+              onClick={() => setMostrarAvancado((v) => !v)}
+              className="w-full flex items-center justify-between text-xs font-bold text-slate-700 dark:text-zinc-300 cursor-pointer"
+            >
+              <span className="flex items-center gap-2">
+                <SlidersHorizontal size={14} className="text-emerald-600 dark:text-emerald-400" />
+                Personalizar Aportes, Custódia e Meta
+              </span>
+              <ChevronDown
+                size={15}
+                className={`text-slate-400 transition-transform ${
+                  mostrarAvancado ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
+
+            {mostrarAvancado && (
+              <div className="pt-4 mt-3 border-t border-slate-200/70 dark:border-zinc-800 space-y-4">
+                <label className="flex items-center justify-between gap-3 cursor-pointer">
+                  <span className="text-xs font-medium text-slate-700 dark:text-zinc-300">
+                    Reajustar aportes anualmente pela inflação
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={reajustarAporteInflacao}
+                    onChange={(e) => setReajustarAporteInflacao(e.target.checked)}
+                    className="w-4 h-4 accent-emerald-600 rounded cursor-pointer"
+                  />
+                </label>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <CampoNumerico
+                    rotulo="Crescimento Real/Ano"
+                    sufixo="%"
+                    step="1"
+                    min="0"
+                    valor={crescimentoRealAporteAnual}
+                    aoAlterar={setCrescimentoRealAporteAnual}
+                  />
+                  <CampoNumerico
+                    rotulo="Aporte Anual Extra"
+                    prefixo="R$"
+                    step="500"
+                    min="0"
+                    valor={aporteExtraAnual}
+                    aoAlterar={setAporteExtraAnual}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <CampoNumerico
+                    rotulo="IPCA Projetado"
+                    sufixo="% a.a."
+                    step="0.1"
+                    min="0"
+                    valor={inflacaoCustomizada ?? String(taxasMercado.ipcaAnual)}
+                    aoAlterar={setInflacaoCustomizada}
+                  />
+                  <CampoNumerico
+                    rotulo="Taxa Custódia/Adm"
+                    sufixo="% a.a."
+                    step="0.05"
+                    min="0"
+                    valor={taxaCustodiaAnual}
+                    aoAlterar={setTaxaCustodiaAnual}
+                  />
+                </div>
+
+                <CampoNumerico
+                  rotulo="Meta de Patrimônio (Opcional)"
+                  prefixo="R$"
+                  step="10000"
+                  min="0"
+                  valor={metaPatrimonio}
+                  aoAlterar={setMetaPatrimonio}
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="pt-2 space-y-2.5">
             <input
               type="text"
-              placeholder="Nome do cenário (ex: Aposentadoria)"
+              placeholder="Dar um nome a este cenário (opcional)"
               value={nomeCenario}
-              onChange={(evento) => setNomeCenario(evento.target.value)}
-              className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-950/50 py-2.5 px-3.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 outline-none focus:border-emerald-500"
+              onChange={(e) => setNomeCenario(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-950/60 py-2.5 px-3.5 text-xs font-medium text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 outline-none focus:border-emerald-500"
             />
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-2 gap-2.5">
               <button
                 type="button"
-                onClick={handleSalvarCenario}
-                className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-xs font-bold transition-colors cursor-pointer"
+                onClick={handleSalvar}
+                className="inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border border-slate-200 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800 text-xs font-bold text-slate-700 dark:text-zinc-200 transition-colors cursor-pointer"
               >
-                <BookmarkPlus size={16} />
+                <Bookmark size={14} />
                 Salvar Cenário
               </button>
-
               <button
                 type="button"
-                onClick={handleDefinirMeta}
-                className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors cursor-pointer"
+                onClick={handleFixar}
+                className="inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
               >
-                <Target size={16} />
-                Definir Meta no Painel
+                <Pin size={14} />
+                Fixar no Painel
               </button>
             </div>
           </div>
         </div>
 
-        <div className="lg:col-span-7 space-y-6">
-          <div className="rounded-2xl bg-zinc-900 dark:bg-zinc-900 border border-zinc-800 p-6 text-white shadow-sm space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-5 border-b border-zinc-800">
+        <div className="lg:col-span-7 rounded-3xl border border-slate-200/80 dark:border-zinc-800/90 bg-white dark:bg-zinc-900/90 shadow-xs overflow-hidden">
+          <div className="p-6 sm:p-8 bg-gradient-to-br from-emerald-500/[0.06] via-transparent to-sky-500/[0.05] border-b border-slate-200/70 dark:border-zinc-800/80 space-y-6 numeros-tabulares">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
               <div>
-                <span className="text-xs font-semibold uppercase tracking-wider text-emerald-400">
-                  Saldo Líquido Final (Na Conta)
+                <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                  Saldo Líquido Estimado
                 </span>
-                <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white mt-1 numeros-tabulares">
+                <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white mt-1">
                   {formatarMoeda(resultado.saldoLiquido)}
                 </h2>
               </div>
 
-              <div className="text-left sm:text-right">
-                <span className="text-xs text-zinc-400 block">Rentabilidade Real Acima do IPCA</span>
-                <span className="text-lg font-bold text-sky-400 numeros-tabulares">
-                  {formatarPercentual(resultado.taxaRealAnual)} a.a.
-                </span>
+              <div className="inline-flex items-center self-start px-3 py-1.5 rounded-full bg-emerald-500/12 text-emerald-700 dark:text-emerald-300 text-xs font-bold">
+                {multiplicadorCapital.toFixed(2).replace('.', ',')}x sobre o investido
               </div>
             </div>
 
-            <div>
-              <div className="flex justify-between text-xs text-zinc-400 mb-2">
-                <span>Composição do Patrimônio Bruto ({formatarMoeda(resultado.valorBruto)})</span>
-                <span>{resultado.totalMeses} meses</span>
+            {parametros.metaPatrimonio > 0 && (
+              <div className="rounded-xl bg-white/80 dark:bg-zinc-950/70 border border-slate-200/80 dark:border-zinc-800 px-4 py-2.5 text-xs flex items-center justify-between">
+                <span className="text-slate-500 dark:text-zinc-400">
+                  Tempo até atingir {formatarMoeda(parametros.metaPatrimonio)}:
+                </span>
+                <strong className="text-slate-900 dark:text-white font-bold">
+                  {resultado.mesAtingiuMeta !== null
+                    ? formatarPrazoMeses(resultado.mesAtingiuMeta)
+                    : 'Acima do período simulado'}
+                </strong>
               </div>
-              <div className="h-3 w-full rounded-full bg-zinc-800 overflow-hidden flex">
+            )}
+
+            <div className="space-y-2.5">
+              <div className="h-3 w-full rounded-full bg-slate-200/70 dark:bg-zinc-800 overflow-hidden flex p-0.5 gap-0.5">
                 <div
-                  style={{ width: `${fatiaInvestido}%` }}
-                  className="bg-zinc-400 transition-all duration-300"
-                  title="Total Investido"
+                  style={{ width: `${pctInvestido}%` }}
+                  className="bg-slate-400 dark:bg-zinc-500 rounded-l-full transition-all duration-300"
                 />
                 <div
-                  style={{ width: `${fatiaJurosLiquidos}%` }}
+                  style={{ width: `${pctJuros}%` }}
                   className="bg-emerald-500 transition-all duration-300"
-                  title="Juros Líquidos"
                 />
-                {fatiaImposto > 0 && (
+                {pctImposto > 0 && (
                   <div
-                    style={{ width: `${fatiaImposto}%` }}
-                    className="bg-rose-500 transition-all duration-300"
-                    title="Imposto de Renda"
+                    style={{ width: `${pctImposto}%` }}
+                    className="bg-rose-400 rounded-r-full transition-all duration-300"
                   />
                 )}
               </div>
-              <div className="flex flex-wrap gap-4 mt-2.5 text-xs text-zinc-300 numeros-tabulares">
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-zinc-400" />
-                  Investido: <strong>{formatarMoeda(resultado.totalInvestido)}</strong>
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                  Juros Líquidos:{' '}
-                  <strong>
-                    {formatarMoeda(resultado.jurosBrutos - resultado.valorImposto)}
-                  </strong>
-                </span>
-                {resultado.valorImposto > 0 && (
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
-                    IR ({formatarPercentual(resultado.aliquotaEfetiva)}):{' '}
-                    <strong>- {formatarMoeda(resultado.valorImposto)}</strong>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
+                <div>
+                  <span className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-zinc-400">
+                    <span className="w-2 h-2 rounded-full bg-slate-400" />
+                    Total Investido
                   </span>
-                )}
+                  <p className="text-sm font-bold text-slate-900 dark:text-zinc-100 mt-0.5">
+                    {formatarMoeda(resultado.totalInvestido)}
+                  </p>
+                </div>
+
+                <div>
+                  <span className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-zinc-400">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    Juros Líquidos
+                  </span>
+                  <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                    + {formatarMoeda(resultado.jurosLiquidos)}
+                  </p>
+                </div>
+
+                <div>
+                  <span className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-zinc-400">
+                    <span className="w-2 h-2 rounded-full bg-rose-400" />
+                    IR ({formatarPercentual(resultado.aliquotaEfetiva)})
+                  </span>
+                  <p className="text-sm font-bold text-rose-500 mt-0.5">
+                    {resultado.valorImposto > 0
+                      ? `- ${formatarMoeda(resultado.valorImposto)}`
+                      : 'Isento'}
+                  </p>
+                </div>
+
+                <div>
+                  <span className="text-xs text-slate-500 dark:text-zinc-400 block">
+                    Poder Real Hoje
+                  </span>
+                  <p className="text-sm font-bold text-amber-600 dark:text-amber-400 mt-0.5">
+                    {formatarMoeda(resultado.poderDeCompraReal)}
+                  </p>
+                </div>
               </div>
             </div>
+          </div>
 
-            <div className="rounded-xl bg-zinc-950/70 border border-zinc-800 p-4 flex items-start gap-3.5">
-              <div className="p-2 rounded-lg bg-amber-500/15 text-amber-400 shrink-0 mt-0.5">
-                <ShieldCheck size={18} />
-              </div>
+          <div className="p-6 sm:p-8 space-y-5">
+            <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-amber-400">
-                  Poder de Compra Real Hoje
-                </p>
-                <p className="text-2xl font-extrabold text-white mt-0.5 numeros-tabulares">
-                  {formatarMoeda(resultado.poderDeCompraReal)}
-                </p>
-                <p className="text-xs text-zinc-400 mt-1">
-                  Equivalente ao que esse saldo líquido compraria nos preços atuais, descontando{' '}
-                  {formatarPercentual(parametrosCalculo.inflacaoAnual)} de inflação anual.
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  Projeção no Tempo
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-zinc-400">
+                  Taxa real líquida estimada: {formatarPercentual(resultado.taxaRealAnual)} a.a.
                 </p>
               </div>
-            </div>
-          </div>
 
-          <div className="rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-900 p-6 shadow-xs">
-            <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 mb-4">
-              Curva de Acumulação (Líquido vs Poder Real vs Investido)
-            </h3>
-            <div className="h-64 w-full text-xs">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart
-                  data={resultado.historico}
-                  margin={{ top: 8, right: 10, left: 8, bottom: 0 }}
+              <div className="inline-flex p-1 rounded-xl bg-slate-100 dark:bg-zinc-950 border border-slate-200/60 dark:border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => setAbaVisualizacao('grafico')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    abaVisualizacao === 'grafico'
+                      ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-2xs'
+                      : 'text-slate-500 dark:text-zinc-400'
+                  }`}
                 >
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={corGrade} />
-                  <XAxis dataKey="rotulo" stroke="#71717a" axisLine={false} tickLine={false} />
-                  <YAxis
-                    tickFormatter={(v: number) => formatarMoedaCompacta(v)}
-                    stroke="#71717a"
-                    axisLine={false}
-                    tickLine={false}
-                    width={72}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: tema === 'escuro' ? '#18181b' : '#ffffff',
-                      borderColor: tema === 'escuro' ? '#27272a' : '#e4e4e7',
-                      borderRadius: '12px',
-                      fontSize: '12px',
-                    }}
-                    formatter={(valor) => formatarMoeda(Number(valor))}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="patrimonioLiquido"
-                    name="Saldo Líquido"
-                    stroke="#10b981"
-                    strokeWidth={2.5}
-                    fill="#10b981"
-                    fillOpacity={0.14}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="poderDeCompraReal"
-                    name="Poder de Compra Real"
-                    stroke="#f59e0b"
-                    strokeWidth={2}
-                    fill="#f59e0b"
-                    fillOpacity={0.08}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="investido"
-                    name="Total Investido"
-                    stroke="#71717a"
-                    strokeWidth={1.8}
-                    strokeDasharray="4 4"
-                    fill="transparent"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-900 shadow-xs overflow-hidden">
-        <div className="px-6 py-4 border-b border-zinc-200/80 dark:border-zinc-800/80 flex items-center justify-between">
-          <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-            <FileSpreadsheet size={18} className="text-emerald-600 dark:text-emerald-400" />
-            Evolução Detalhada por Período
-          </h3>
-          <span className="text-xs text-zinc-500 dark:text-zinc-400">
-            {resultado.historico.length - 1} marcos registrados
-          </span>
-        </div>
-
-        <div className="overflow-x-auto max-h-96">
-          <table className="w-full text-left border-collapse text-sm numeros-tabulares">
-            <thead className="sticky top-0 bg-zinc-50 dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 text-xs uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-              <tr>
-                <th className="py-3.5 px-5 font-semibold">Período</th>
-                <th className="py-3.5 px-5 font-semibold">Total Investido</th>
-                <th className="py-3.5 px-5 font-semibold">Juros Brutos</th>
-                <th className="py-3.5 px-5 font-semibold">Saldo Líquido</th>
-                <th className="py-3.5 px-5 font-semibold text-right">Poder Real</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/70">
-              {resultado.historico.slice(1).map((linha) => (
-                <tr
-                  key={linha.rotulo}
-                  className="hover:bg-zinc-50/80 dark:hover:bg-zinc-800/40 transition-colors"
+                  Gráfico
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAbaVisualizacao('tabela')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    abaVisualizacao === 'tabela'
+                      ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-2xs'
+                      : 'text-slate-500 dark:text-zinc-400'
+                  }`}
                 >
-                  <td className="py-3.5 px-5 font-semibold text-zinc-800 dark:text-zinc-200">
-                    {linha.rotulo}
-                  </td>
-                  <td className="py-3.5 px-5 text-zinc-600 dark:text-zinc-400">
-                    {formatarMoeda(linha.investido)}
-                  </td>
-                  <td className="py-3.5 px-5 text-sky-600 dark:text-sky-400 font-medium">
-                    + {formatarMoeda(linha.jurosBrutos)}
-                  </td>
-                  <td className="py-3.5 px-5 text-emerald-600 dark:text-emerald-400 font-bold">
-                    {formatarMoeda(linha.patrimonioLiquido)}
-                  </td>
-                  <td className="py-3.5 px-5 text-right font-semibold text-amber-600 dark:text-amber-400">
-                    {formatarMoeda(linha.poderDeCompraReal)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  Tabela ({resultado.historico.length - 1})
+                </button>
+              </div>
+            </div>
+
+            {abaVisualizacao === 'grafico' ? (
+              <div className="h-80 w-full text-xs">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart
+                    data={resultado.historico}
+                    margin={{ top: 10, right: 10, left: 4, bottom: 0 }}
+                  >
+                    <defs>
+                      <linearGradient id="gradSimLiquido" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.22} />
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={corGrade} />
+                    <XAxis dataKey="rotulo" stroke="#94a3b8" axisLine={false} tickLine={false} />
+                    <YAxis
+                      tickFormatter={(v: number) => formatarMoedaCompacta(v)}
+                      stroke="#94a3b8"
+                      axisLine={false}
+                      tickLine={false}
+                      width={74}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: tema === 'escuro' ? '#18181b' : '#ffffff',
+                        borderColor: tema === 'escuro' ? '#27272a' : '#e2e8f0',
+                        borderRadius: '14px',
+                        fontSize: '12px',
+                      }}
+                      formatter={(valor) => formatarMoeda(Number(valor))}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="patrimonioLiquido"
+                      name="Saldo Líquido"
+                      stroke="#10b981"
+                      strokeWidth={2.5}
+                      fill="url(#gradSimLiquido)"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="poderDeCompraReal"
+                      name="Poder de Compra Real"
+                      stroke="#f59e0b"
+                      strokeWidth={2}
+                      fill="transparent"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="investido"
+                      name="Total Investido"
+                      stroke="#94a3b8"
+                      strokeWidth={1.8}
+                      strokeDasharray="4 4"
+                      fill="transparent"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="h-80 overflow-y-auto rounded-xl border border-slate-200/70 dark:border-zinc-800">
+                <table className="w-full text-left text-xs numeros-tabulares">
+                  <thead className="sticky top-0 bg-slate-50 dark:bg-zinc-950 text-slate-500 dark:text-zinc-400 border-b border-slate-200 dark:border-zinc-800">
+                    <tr>
+                      <th className="py-3 px-4 font-semibold">Período</th>
+                      <th className="py-3 px-4 font-semibold">Investido</th>
+                      <th className="py-3 px-4 font-semibold">Juros Líquidos</th>
+                      <th className="py-3 px-4 font-semibold">Saldo Líquido</th>
+                      <th className="py-3 px-4 font-semibold text-right">Poder Real</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-zinc-800/70">
+                    {resultado.historico.slice(1).map((linha) => (
+                      <tr
+                        key={linha.rotulo}
+                        className="hover:bg-slate-50/80 dark:hover:bg-zinc-800/40"
+                      >
+                        <td className="py-3 px-4 font-bold text-slate-800 dark:text-zinc-200">
+                          {linha.rotulo}
+                        </td>
+                        <td className="py-3 px-4 text-slate-600 dark:text-zinc-400">
+                          {formatarMoeda(linha.investido)}
+                        </td>
+                        <td className="py-3 px-4 font-semibold text-emerald-600 dark:text-emerald-400">
+                          + {formatarMoeda(linha.jurosLiquidos)}
+                        </td>
+                        <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
+                          {formatarMoeda(linha.patrimonioLiquido)}
+                        </td>
+                        <td className="py-3 px-4 text-right font-semibold text-amber-600 dark:text-amber-400">
+                          {formatarMoeda(linha.poderDeCompraReal)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
   );
 }
-
