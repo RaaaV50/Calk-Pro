@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   CartesianGrid,
   Legend,
@@ -9,6 +10,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { BotaoCompartilhar } from '../components/BotaoCompartilhar';
 import { CabecalhoPagina } from '../components/CabecalhoPagina';
 import { CampoNumerico } from '../components/CampoNumerico';
 import { useFinanceStore } from '../store/useFinanceStore';
@@ -21,13 +23,20 @@ import {
 } from '../utils/formatadores';
 
 export default function Financiamento() {
+  const [parametrosUrl] = useSearchParams();
   const tema = useFinanceStore((estado) => estado.tema);
 
-  const [valorBem, setValorBem] = useState('400000');
-  const [valorEntrada, setValorEntrada] = useState('80000');
-  const [taxaJurosAnual, setTaxaJurosAnual] = useState('10.5');
-  const [prazoAnos, setPrazoAnos] = useState('25');
-  const [amortizacaoExtraMensal, setAmortizacaoExtraMensal] = useState('500');
+  const [valorBem, setValorBem] = useState(parametrosUrl.get('bem') ?? '400000');
+  const [valorEntrada, setValorEntrada] = useState(
+    parametrosUrl.get('entrada') ?? '80000'
+  );
+  const [taxaJurosAnual, setTaxaJurosAnual] = useState(
+    parametrosUrl.get('juros') ?? '10.5'
+  );
+  const [prazoAnos, setPrazoAnos] = useState(parametrosUrl.get('anos') ?? '25');
+  const [amortizacaoExtraMensal, setAmortizacaoExtraMensal] = useState(
+    parametrosUrl.get('extra') ?? '500'
+  );
 
   const resultado = useMemo(
     () =>
@@ -50,6 +59,17 @@ export default function Financiamento() {
         categoria="Crédito Imobiliário & Bens"
         titulo="Financiamento & Amortização"
         descricao="Compare Tabela SAC vs Price e simule quanto tempo e juros você economiza com amortizações extras."
+        acoes={
+          <BotaoCompartilhar
+            parametros={{
+              bem: valorBem,
+              entrada: valorEntrada,
+              juros: taxaJurosAnual,
+              anos: prazoAnos,
+              extra: amortizacaoExtraMensal,
+            }}
+          />
+        }
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-7 items-start">

@@ -5,7 +5,6 @@ import {
   Check,
   ChevronDown,
   Pin,
-  Share2,
   SlidersHorizontal,
 } from 'lucide-react';
 import {
@@ -17,6 +16,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { BotaoCompartilhar } from '../components/BotaoCompartilhar';
 import { CabecalhoPagina } from '../components/CabecalhoPagina';
 import { CampoNumerico } from '../components/CampoNumerico';
 import { useFinanceStore } from '../store/useFinanceStore';
@@ -37,7 +37,7 @@ import {
 } from '../utils/formatadores';
 
 export default function Simulador() {
-  const [parametrosUrl, setParametrosUrl] = useSearchParams();
+  const [parametrosUrl] = useSearchParams();
   const taxasMercado = useFinanceStore((estado) => estado.taxasMercado);
   const tema = useFinanceStore((estado) => estado.tema);
   const definirMetaAtiva = useFinanceStore((estado) => estado.definirMetaAtiva);
@@ -66,15 +66,32 @@ export default function Simulador() {
     (parametrosUrl.get('ir') as TipoTributacao) || 'regressivo'
   );
 
-  const [mostrarAvancado, setMostrarAvancado] = useState(false);
-  const [reajustarAporteInflacao, setReajustarAporteInflacao] = useState(false);
-  const [crescimentoRealAporteAnual, setCrescimentoRealAporteAnual] = useState('0');
-  const [aporteExtraAnual, setAporteExtraAnual] = useState('0');
-  const [taxaCustodiaAnual, setTaxaCustodiaAnual] = useState('0');
+  const temAvancadoNaUrl =
+    parametrosUrl.has('reajuste') ||
+    parametrosUrl.has('cresc') ||
+    parametrosUrl.has('extra') ||
+    parametrosUrl.has('custodia') ||
+    parametrosUrl.has('meta');
+
+  const [mostrarAvancado, setMostrarAvancado] = useState(temAvancadoNaUrl);
+  const [reajustarAporteInflacao, setReajustarAporteInflacao] = useState(
+    parametrosUrl.get('reajuste') === '1'
+  );
+  const [crescimentoRealAporteAnual, setCrescimentoRealAporteAnual] = useState(
+    parametrosUrl.get('cresc') ?? '0'
+  );
+  const [aporteExtraAnual, setAporteExtraAnual] = useState(
+    parametrosUrl.get('extra') ?? '0'
+  );
+  const [taxaCustodiaAnual, setTaxaCustodiaAnual] = useState(
+    parametrosUrl.get('custodia') ?? '0'
+  );
   const [inflacaoCustomizada, setInflacaoCustomizada] = useState<string | null>(
     parametrosUrl.get('inflacao')
   );
-  const [metaPatrimonio, setMetaPatrimonio] = useState('0');
+  const [metaPatrimonio, setMetaPatrimonio] = useState(
+    parametrosUrl.get('meta') ?? '0'
+  );
 
   const [abaVisualizacao, setAbaVisualizacao] = useState<'grafico' | 'tabela'>('grafico');
   const [nomeCenario, setNomeCenario] = useState('');
@@ -161,26 +178,21 @@ export default function Simulador() {
     notificar('Fixado no Painel');
   };
 
-  const handleCompartilhar = async () => {
-    const query = new URLSearchParams({
-      inicial: String(parametros.capitalInicial),
-      aporte: String(parametros.aporteMensal),
-      modelo: parametros.modeloRentabilidade,
-      taxa: String(parametros.taxaInformada),
-      utaxa: parametros.unidadeTaxa,
-      periodo: String(parametros.periodo),
-      uperiodo: parametros.unidadePeriodo,
-      inflacao: String(parametros.inflacaoAnual),
-      ir: parametros.tributacao,
-    });
-    setParametrosUrl(query, { replace: true });
-    const url = `${window.location.origin}${window.location.pathname}?${query.toString()}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      notificar('Link copiado!');
-    } catch {
-      notificar('URL atualizada');
-    }
+  const parametrosCompartilhamento = {
+    inicial: parametros.capitalInicial,
+    aporte: parametros.aporteMensal,
+    modelo: parametros.modeloRentabilidade,
+    taxa: parametros.taxaInformada,
+    utaxa: parametros.unidadeTaxa,
+    periodo: parametros.periodo,
+    uperiodo: parametros.unidadePeriodo,
+    inflacao: parametros.inflacaoAnual,
+    ir: parametros.tributacao,
+    reajuste: parametros.reajustarAporteInflacao ? '1' : undefined,
+    cresc: parametros.crescimentoRealAporteAnual > 0 ? parametros.crescimentoRealAporteAnual : undefined,
+    extra: parametros.aporteExtraAnual > 0 ? parametros.aporteExtraAnual : undefined,
+    custodia: parametros.taxaCustodiaAnual > 0 ? parametros.taxaCustodiaAnual : undefined,
+    meta: parametros.metaPatrimonio > 0 ? parametros.metaPatrimonio : undefined,
   };
 
   const totalBruto = Math.max(1, resultado.valorBruto);
@@ -208,14 +220,7 @@ export default function Simulador() {
                 {feedback}
               </span>
             )}
-            <button
-              type="button"
-              onClick={handleCompartilhar}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-slate-50 dark:hover:bg-zinc-800 text-xs font-semibold text-slate-700 dark:text-zinc-200 shadow-2xs transition-colors cursor-pointer"
-            >
-              <Share2 size={14} />
-              Compartilhar Link
-            </button>
+            <BotaoCompartilhar parametros={parametrosCompartilhamento} />
           </div>
         }
       />

@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { BotaoCompartilhar } from '../components/BotaoCompartilhar';
 import { CabecalhoPagina } from '../components/CabecalhoPagina';
 import { CampoNumerico } from '../components/CampoNumerico';
 import { useFinanceStore } from '../store/useFinanceStore';
@@ -12,11 +14,18 @@ import {
 type PeriodoOrigem = 'anual' | 'mensal' | 'diaria';
 
 export default function ConversorTaxas() {
+  const [parametrosUrl] = useSearchParams();
   const taxasMercado = useFinanceStore((estado) => estado.taxasMercado);
 
-  const [taxa, setTaxa] = useState(String(taxasMercado.cdiAnual));
-  const [origem, setOrigem] = useState<PeriodoOrigem>('anual');
-  const [inflacao, setInflacao] = useState(String(taxasMercado.ipcaAnual));
+  const [taxa, setTaxa] = useState(
+    parametrosUrl.get('taxa') ?? String(taxasMercado.cdiAnual)
+  );
+  const [origem, setOrigem] = useState<PeriodoOrigem>(
+    (parametrosUrl.get('origem') as PeriodoOrigem) || 'anual'
+  );
+  const [inflacao, setInflacao] = useState(
+    parametrosUrl.get('inflacao') ?? String(taxasMercado.ipcaAnual)
+  );
 
   const conversao = useMemo(
     () =>
@@ -34,6 +43,15 @@ export default function ConversorTaxas() {
         categoria="Utilitário Rápido"
         titulo="Conversor de Taxas & Juros Reais"
         descricao="Converta taxas equivalentes compostas (ano, mês e dia útil base 252) e calcule o gross-up de IR."
+        acoes={
+          <BotaoCompartilhar
+            parametros={{
+              taxa,
+              origem,
+              inflacao,
+            }}
+          />
+        }
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-7 items-start">

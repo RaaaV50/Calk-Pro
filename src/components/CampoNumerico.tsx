@@ -42,9 +42,10 @@ export function CampoNumerico({
         )}
         <input
           type="number"
+          placeholder="0"
           value={valor}
           onChange={(evento) => aoAlterar(evento.target.value)}
-          className="w-full min-w-0 bg-transparent py-2.5 px-3 text-sm font-bold text-slate-900 dark:text-zinc-50 placeholder:text-slate-400 outline-none numeros-tabulares"
+          className="w-full min-w-0 bg-transparent py-2.5 px-3 text-sm font-bold text-slate-900 dark:text-zinc-50 placeholder:text-slate-400 dark:placeholder:text-zinc-600 outline-none numeros-tabulares"
           {...restante}
         />
         {sufixo && (

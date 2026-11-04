@@ -1,9 +1,10 @@
 import { useState, type ReactNode } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import {
-  ArrowLeftRight,
+  Building2,
   Calculator,
   Compass,
+  Flame,
   Landmark,
   LayoutDashboard,
   Menu,
@@ -14,6 +15,7 @@ import {
   TrendingUp,
   X,
 } from 'lucide-react';
+import { BotaoInstalarApp } from '../components/BotaoInstalarApp';
 import { IconeGithub, IconeLinkedin } from '../components/IconesRedes';
 import { PainelTaxasBcb } from '../components/PainelTaxasBcb';
 import { DADOS_AUTOR } from '../constants/autor';
@@ -26,10 +28,11 @@ interface PropriedadesMainLayout {
 const ROTAS_NAVEGACAO = [
   { rota: '/simulador', rotulo: 'Simulador', icone: Calculator },
   { rota: '/comparador', rotulo: 'Renda Fixa', icone: Scale },
+  { rota: '/fiis', rotulo: 'FIIs', icone: Building2 },
+  { rota: '/acoes', rotulo: 'Ações B3', icone: Flame },
   { rota: '/metas', rotulo: 'Metas', icone: Target },
-  { rota: '/independencia', rotulo: 'Viver de Renda', icone: Compass },
+  { rota: '/independencia', rotulo: 'Aposentadoria', icone: Compass },
   { rota: '/financiamento', rotulo: 'Financiamento', icone: Landmark },
-  { rota: '/conversor', rotulo: 'Taxas', icone: ArrowLeftRight },
   { rota: '/dashboard', rotulo: 'Painel', icone: LayoutDashboard },
 ] as const;
 
@@ -45,7 +48,7 @@ export default function MainLayout({ children }: PropriedadesMainLayout) {
       />
 
       <header className="sticky top-0 z-30 border-b border-slate-200/80 dark:border-zinc-800/80 bg-white/80 dark:bg-[#09090b]/80 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
           <Link to="/simulador" className="flex items-center gap-2.5 shrink-0 group">
             <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
               <TrendingUp size={17} strokeWidth={2.5} />
@@ -55,7 +58,7 @@ export default function MainLayout({ children }: PropriedadesMainLayout) {
             </span>
           </Link>
 
-          <nav className="hidden lg:flex items-center gap-1 p-1 rounded-full border border-slate-200/80 dark:border-zinc-800/90 bg-slate-100/80 dark:bg-zinc-900/90">
+          <nav className="hidden lg:flex items-center gap-0.5 p-1 rounded-full border border-slate-200/80 dark:border-zinc-800/90 bg-slate-100/80 dark:bg-zinc-900/90">
             {ROTAS_NAVEGACAO.map((item) => {
               const Icone = item.icone;
               return (
@@ -63,14 +66,14 @@ export default function MainLayout({ children }: PropriedadesMainLayout) {
                   key={item.rota}
                   to={item.rota}
                   className={({ isActive }) =>
-                    `flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                    `flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
                       isActive
                         ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs'
                         : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
                     }`
                   }
                 >
-                  <Icone size={14} />
+                  <Icone size={13} className="hidden xl:block" />
                   <span>{item.rotulo}</span>
                 </NavLink>
               );
@@ -78,6 +81,7 @@ export default function MainLayout({ children }: PropriedadesMainLayout) {
           </nav>
 
           <div className="flex items-center gap-2 shrink-0">
+            <BotaoInstalarApp />
             <PainelTaxasBcb />
 
             <button
@@ -102,7 +106,7 @@ export default function MainLayout({ children }: PropriedadesMainLayout) {
         </div>
 
         {menuAberto && (
-          <div className="lg:hidden border-t border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4 py-3 grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+          <div className="lg:hidden border-t border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4 py-3 grid grid-cols-2 sm:grid-cols-4 gap-1.5">
             {ROTAS_NAVEGACAO.map((item) => {
               const Icone = item.icone;
               return (
@@ -133,10 +137,10 @@ export default function MainLayout({ children }: PropriedadesMainLayout) {
 
       <footer className="relative z-10 border-t border-slate-200/80 dark:border-zinc-800/80 bg-white/60 dark:bg-zinc-950/60">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 dark:text-zinc-400">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 text-center sm:text-left">
             <span className="font-bold text-slate-800 dark:text-zinc-200">CalkPro</span>
             <span>·</span>
-            <span>Dados sincronizados com a API SGS do Banco Central do Brasil</span>
+            <span>APIs integradas: Banco Central do Brasil (SGS) & B3 (Brapi)</span>
           </div>
 
           <div className="flex items-center gap-3">

@@ -27,7 +27,18 @@ export function formatarMoeda(valor: number): string {
 
 export function formatarMoedaCompacta(valor: number): string {
   if (!Number.isFinite(valor)) return 'R$ 0';
+  if (Math.abs(valor) >= 1e15) {
+    return `R$ ${(valor / 1e12).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} tri`;
+  }
   return formatadorBrlCompacto.format(valor);
+}
+
+export function formatarMoedaDestaque(valor: number): string {
+  if (!Number.isFinite(valor)) return 'R$ 0,00';
+  if (Math.abs(valor) >= 100_000_000) {
+    return formatarMoedaCompacta(valor);
+  }
+  return formatadorBrl.format(valor);
 }
 
 export function formatarPercentual(valor: number): string {

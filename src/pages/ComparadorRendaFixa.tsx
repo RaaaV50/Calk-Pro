@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Award } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { ArrowLeftRight, Award } from 'lucide-react';
 import {
   CartesianGrid,
   Legend,
@@ -10,6 +11,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { BotaoCompartilhar } from '../components/BotaoCompartilhar';
 import { CabecalhoPagina } from '../components/CabecalhoPagina';
 import { CampoNumerico } from '../components/CampoNumerico';
 import { useFinanceStore } from '../store/useFinanceStore';
@@ -22,16 +24,31 @@ import {
 } from '../utils/formatadores';
 
 export default function ComparadorRendaFixa() {
+  const [parametrosUrl] = useSearchParams();
   const taxasMercado = useFinanceStore((estado) => estado.taxasMercado);
   const tema = useFinanceStore((estado) => estado.tema);
 
-  const [capitalInicial, setCapitalInicial] = useState('10000');
-  const [aporteMensal, setAporteMensal] = useState('500');
-  const [prazoMeses, setPrazoMeses] = useState('24');
-  const [percentualCdb, setPercentualCdb] = useState('105');
-  const [percentualLci, setPercentualLci] = useState('90');
-  const [spreadIpcaMais, setSpreadIpcaMais] = useState('6.5');
-  const [custodiaTesouro, setCustodiaTesouro] = useState('0.20');
+  const [capitalInicial, setCapitalInicial] = useState(
+    parametrosUrl.get('inicial') ?? '10000'
+  );
+  const [aporteMensal, setAporteMensal] = useState(
+    parametrosUrl.get('aporte') ?? '500'
+  );
+  const [prazoMeses, setPrazoMeses] = useState(
+    parametrosUrl.get('prazo') ?? '24'
+  );
+  const [percentualCdb, setPercentualCdb] = useState(
+    parametrosUrl.get('cdb') ?? '105'
+  );
+  const [percentualLci, setPercentualLci] = useState(
+    parametrosUrl.get('lci') ?? '90'
+  );
+  const [spreadIpcaMais, setSpreadIpcaMais] = useState(
+    parametrosUrl.get('ipca') ?? '6.5'
+  );
+  const [custodiaTesouro, setCustodiaTesouro] = useState(
+    parametrosUrl.get('custodia') ?? '0.20'
+  );
 
   const comparativo = useMemo(
     () =>
@@ -71,6 +88,28 @@ export default function ComparadorRendaFixa() {
         categoria="Análise Comparativa"
         titulo="Comparador de Renda Fixa"
         descricao="Compare o retorno líquido real entre CDB, LCI/LCA, Tesouro IPCA+ e Poupança usando as taxas do Banco Central."
+        acoes={
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              to="/conversor"
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-slate-50 dark:hover:bg-zinc-800 text-xs font-semibold text-slate-700 dark:text-zinc-200 shadow-2xs transition-colors"
+            >
+              <ArrowLeftRight size={14} />
+              Conversor de Taxas
+            </Link>
+            <BotaoCompartilhar
+              parametros={{
+                inicial: capitalInicial,
+                aporte: aporteMensal,
+                prazo: prazoMeses,
+                cdb: percentualCdb,
+                lci: percentualLci,
+                ipca: spreadIpcaMais,
+                custodia: custodiaTesouro,
+              }}
+            />
+          </div>
+        }
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-7 items-start">

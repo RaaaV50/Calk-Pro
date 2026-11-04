@@ -2,20 +2,63 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <title>Calk-Pro · Inteligência & Simulação Financeira</title>
     <meta
       name="description"
-      content="Calk-Pro — Plataforma moderna de simulação financeira: juros compostos com IR regressivo e inflação, comparador de renda fixa, independência financeira e financiamento SAC vs Price."
+      content="Plataforma moderna de simulação financeira integrada ao Banco Central (SGS) e à B3: juros compostos com IR regressivo, comparador de renda fixa, FIIs, ações e financiamento SAC vs Price."
+    />
+    <meta
+      name="keywords"
+      content="calculadora juros compostos, simulador renda fixa, simulador fiis, bola de neve fiis, preco teto bazin, cdi hoje, financiamento sac price, calk pro, cassio cortelini"
     />
     <meta name="author" content="Cassio Cortelini" />
+    <meta name="application-name" content="CalkPro" />
+
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#09090b" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="CalkPro" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta property="og:site_name" content="Calk-Pro" />
+    <meta property="og:title" content="Calk-Pro · Inteligência & Simulação Financeira" />
+    <meta
+      property="og:description"
+      content="Simule juros compostos com CDI/IPCA do Banco Central, compare CDB vs LCI/LCA, calcule o Número Mágico de FIIs e analise ações da B3 em tempo real."
+    />
+    <meta property="og:image" content="/og-cover.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Calk-Pro — Plataforma de Inteligência e Simulação Financeira por Cassio Cortelini"
+    />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Calk-Pro · Inteligência & Simulação Financeira" />
+    <meta
+      name="twitter:description"
+      content="Simule juros compostos, FIIs, ações da B3 (Método Bazin), renda fixa e financiamento SAC vs Price com taxas reais do Banco Central."
+    />
+    <meta name="twitter:image" content="/og-cover.png" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <title>Calk-Pro · Inteligência & Simulação Financeira</title>
   </head>
   <body class="antialiased selection:bg-emerald-500/20 selection:text-emerald-700 dark:selection:text-emerald-300">
     <div id="root"></div>

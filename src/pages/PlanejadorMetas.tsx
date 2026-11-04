@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Area,
   AreaChart,
@@ -8,6 +9,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { BotaoCompartilhar } from '../components/BotaoCompartilhar';
 import { CabecalhoPagina } from '../components/CabecalhoPagina';
 import { CampoNumerico } from '../components/CampoNumerico';
 import { useFinanceStore } from '../store/useFinanceStore';
@@ -22,19 +24,38 @@ import {
 type ModoObjetivo = 'metaLivre' | 'reservaEmergencia';
 
 export default function PlanejadorMetas() {
+  const [parametrosUrl] = useSearchParams();
   const taxasMercado = useFinanceStore((estado) => estado.taxasMercado);
   const tema = useFinanceStore((estado) => estado.tema);
 
-  const [modo, setModo] = useState<ModoObjetivo>('metaLivre');
-  const [valorMeta, setValorMeta] = useState('100000');
-  const [custoMensalVida, setCustoMensalVida] = useState('4500');
-  const [mesesSeguranca, setMesesSeguranca] = useState('6');
+  const [modo, setModo] = useState<ModoObjetivo>(
+    (parametrosUrl.get('modo') as ModoObjetivo) || 'metaLivre'
+  );
+  const [valorMeta, setValorMeta] = useState(
+    parametrosUrl.get('meta') ?? '100000'
+  );
+  const [custoMensalVida, setCustoMensalVida] = useState(
+    parametrosUrl.get('custo') ?? '4500'
+  );
+  const [mesesSeguranca, setMesesSeguranca] = useState(
+    parametrosUrl.get('mesesSeg') ?? '6'
+  );
 
-  const [capitalInicial, setCapitalInicial] = useState('5000');
-  const [prazoMeses, setPrazoMeses] = useState('36');
-  const [percentualCdi, setPercentualCdi] = useState('100');
-  const [corrigirPelaInflacao, setCorrigirPelaInflacao] = useState(true);
-  const [tributacao, setTributacao] = useState<TipoTributacao>('regressivo');
+  const [capitalInicial, setCapitalInicial] = useState(
+    parametrosUrl.get('inicial') ?? '5000'
+  );
+  const [prazoMeses, setPrazoMeses] = useState(
+    parametrosUrl.get('prazo') ?? '36'
+  );
+  const [percentualCdi, setPercentualCdi] = useState(
+    parametrosUrl.get('cdi') ?? '100'
+  );
+  const [corrigirPelaInflacao, setCorrigirPelaInflacao] = useState(
+    parametrosUrl.get('inflacao') ? parametrosUrl.get('inflacao') === '1' : true
+  );
+  const [tributacao, setTributacao] = useState<TipoTributacao>(
+    (parametrosUrl.get('ir') as TipoTributacao) || 'regressivo'
+  );
 
   const valorAlvo =
     modo === 'reservaEmergencia'
@@ -77,6 +98,21 @@ export default function PlanejadorMetas() {
         categoria="Cálculo Reverso"
         titulo="Planejador de Metas & Reserva"
         descricao="Defina quanto quer alcançar e descubra o aporte mensal exato para chegar lá no prazo escolhido."
+        acoes={
+          <BotaoCompartilhar
+            parametros={{
+              modo,
+              meta: modo === 'metaLivre' ? valorMeta : undefined,
+              custo: modo === 'reservaEmergencia' ? custoMensalVida : undefined,
+              mesesSeg: modo === 'reservaEmergencia' ? mesesSeguranca : undefined,
+              inicial: capitalInicial,
+              prazo: prazoMeses,
+              cdi: percentualCdi,
+              inflacao: corrigirPelaInflacao ? '1' : '0',
+              ir: tributacao,
+            }}
+          />
+        }
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-7 items-start">

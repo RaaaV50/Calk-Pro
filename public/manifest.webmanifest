@@ -1,0 +1,65 @@
+{
+  "id": "/",
+  "name": "Calk-Pro · Inteligência & Simulação Financeira",
+  "short_name": "CalkPro",
+  "description": "Plataforma moderna de simulação financeira integrada ao Banco Central e B3: juros compostos com IR regressivo, renda fixa, FIIs, ações e financiamento.",
+  "lang": "pt-BR",
+  "start_url": "/simulador",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#09090b",
+  "theme_color": "#059669",
+  "categories": ["finance", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Juros Compostos",
+      "short_name": "Simulador",
+      "description": "Simular juros compostos com CDI, IPCA+ e IR regressivo",
+      "url": "/simulador",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Bola de Neve de FIIs",
+      "short_name": "FIIs",
+      "description": "Calcular Número Mágico e aluguéis isentos na B3",
+      "url": "/fiis",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Radar de Ações B3",
+      "short_name": "Ações",
+      "description": "Mapa de calor da bolsa e Preço Teto Bazin",
+      "url": "/acoes",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Painel & Comparativo",
+      "short_name": "Painel",
+      "description": "Comparar cenários salvos lado a lado",
+      "url": "/dashboard",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
+

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Area,
   AreaChart,
@@ -9,6 +10,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { BotaoCompartilhar } from '../components/BotaoCompartilhar';
 import { CabecalhoPagina } from '../components/CabecalhoPagina';
 import { CampoNumerico } from '../components/CampoNumerico';
 import { useFinanceStore } from '../store/useFinanceStore';
@@ -23,18 +25,35 @@ import {
 } from '../utils/formatadores';
 
 export default function IndependenciaFinanceira() {
+  const [parametrosUrl] = useSearchParams();
   const taxasMercado = useFinanceStore((estado) => estado.taxasMercado);
   const tema = useFinanceStore((estado) => estado.tema);
 
-  const [rendaMensalDesejada, setRendaMensalDesejada] = useState('6000');
-  const [patrimonioAtual, setPatrimonioAtual] = useState('30000');
-  const [aporteMensal, setAporteMensal] = useState('1500');
-  const [rentabilidadeLiquidaAnual, setRentabilidadeLiquidaAnual] = useState('11.5');
-  const [modoUsufruto, setModoUsufruto] = useState<ModoUsufruto>('perpetuo');
-  const [anosUsufruto, setAnosUsufruto] = useState('30');
-  const [taxaRetiradaFixaAnual, setTaxaRetiradaFixaAnual] = useState('4');
-  const [idadeAtual, setIdadeAtual] = useState('28');
-  const [idadeAlvo, setIdadeAlvo] = useState('55');
+  const [rendaMensalDesejada, setRendaMensalDesejada] = useState(
+    parametrosUrl.get('renda') ?? '6000'
+  );
+  const [patrimonioAtual, setPatrimonioAtual] = useState(
+    parametrosUrl.get('atual') ?? '30000'
+  );
+  const [aporteMensal, setAporteMensal] = useState(
+    parametrosUrl.get('aporte') ?? '1500'
+  );
+  const [rentabilidadeLiquidaAnual, setRentabilidadeLiquidaAnual] = useState(
+    parametrosUrl.get('rent') ?? '11.5'
+  );
+  const [modoUsufruto, setModoUsufruto] = useState<ModoUsufruto>(
+    (parametrosUrl.get('modo') as ModoUsufruto) || 'perpetuo'
+  );
+  const [anosUsufruto, setAnosUsufruto] = useState(
+    parametrosUrl.get('anosUso') ?? '30'
+  );
+  const [taxaRetiradaFixaAnual, setTaxaRetiradaFixaAnual] = useState(
+    parametrosUrl.get('taxaRet') ?? '4'
+  );
+  const [idadeAtual, setIdadeAtual] = useState(
+    parametrosUrl.get('idade') ?? '28'
+  );
+  const [idadeAlvo, setIdadeAlvo] = useState(parametrosUrl.get('alvo') ?? '55');
 
   const resultado = useMemo(
     () =>
@@ -72,6 +91,21 @@ export default function IndependenciaFinanceira() {
         categoria="Liberdade Financeira"
         titulo="Viver de Renda"
         descricao="Planeje o capital necessário para sua renda mensal em poder de compra real, já descontando o IPCA."
+        acoes={
+          <BotaoCompartilhar
+            parametros={{
+              modo: modoUsufruto,
+              renda: rendaMensalDesejada,
+              atual: patrimonioAtual,
+              aporte: aporteMensal,
+              rent: rentabilidadeLiquidaAnual,
+              anosUso: modoUsufruto === 'consumirCapital' ? anosUsufruto : undefined,
+              taxaRet: modoUsufruto === 'taxaFixa' ? taxaRetiradaFixaAnual : undefined,
+              idade: idadeAtual,
+              alvo: idadeAlvo,
+            }}
+          />
+        }
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-7 items-start">
