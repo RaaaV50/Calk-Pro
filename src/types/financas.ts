@@ -117,6 +117,8 @@ export interface ResultadoIndependencia {
   }[];
 }
 
+export type FrequenciaAmortizacaoExtra = 'mensal' | 'anual' | 'bienal';
+
 export interface ResumoAmortizacao {
   primeiraParcela: number;
   ultimaParcela: number;
@@ -131,14 +133,18 @@ export interface ResultadoFinanciamento {
   sac: ResumoAmortizacao;
   price: ResumoAmortizacao;
   sacComExtra: ResumoAmortizacao;
+  priceComExtra: ResumoAmortizacao;
   economiaSacSobrePrice: number;
-  economiaAmortizacaoExtra: number;
-  mesesEconomizadosExtra: number;
+  economiaExtraSac: number;
+  economiaExtraPrice: number;
+  mesesEconomizadosSac: number;
+  mesesEconomizadosPrice: number;
   evolucaoSaldo: {
     rotulo: string;
     saldoSac: number;
     saldoPrice: number;
     saldoSacExtra: number;
+    saldoPriceExtra: number;
   }[];
 }
 

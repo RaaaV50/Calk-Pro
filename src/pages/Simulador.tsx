@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
+  ArrowRight,
   Bookmark,
   Check,
   ChevronDown,
   Pin,
   SlidersHorizontal,
+  X,
 } from 'lucide-react';
 import {
   Area,
@@ -42,6 +44,9 @@ export default function Simulador() {
   const tema = useFinanceStore((estado) => estado.tema);
   const definirMetaAtiva = useFinanceStore((estado) => estado.definirMetaAtiva);
   const salvarCenario = useFinanceStore((estado) => estado.salvarCenario);
+  const totalCenariosSalvos = useFinanceStore(
+    (estado) => estado.cenariosSalvos.length
+  );
 
   const [capitalInicial, setCapitalInicial] = useState(
     parametrosUrl.get('inicial') ?? '10000'
@@ -95,7 +100,10 @@ export default function Simulador() {
 
   const [abaVisualizacao, setAbaVisualizacao] = useState<'grafico' | 'tabela'>('grafico');
   const [nomeCenario, setNomeCenario] = useState('');
-  const [feedback, setFeedback] = useState<string | null>(null);
+  const [confirmacaoPainel, setConfirmacaoPainel] = useState<{
+    titulo: string;
+    acao: 'salvo' | 'fixado';
+  } | null>(null);
 
   const inflacaoEfetiva =
     inflacaoCustomizada !== null
@@ -152,11 +160,13 @@ export default function Simulador() {
     }
   };
 
-  const notificar = (texto: string) => {
-    setFeedback(texto);
+  const dispararConfirmacao = (titulo: string, acao: 'salvo' | 'fixado') => {
+    setConfirmacaoPainel({ titulo, acao });
     window.setTimeout(() => {
-      setFeedback((atual) => (atual === texto ? null : atual));
-    }, 2500);
+      setConfirmacaoPainel((atual) =>
+        atual?.titulo === titulo && atual.acao === acao ? null : atual
+      );
+    }, 6500);
   };
 
   const gerarTitulo = () => {
@@ -168,14 +178,16 @@ export default function Simulador() {
   };
 
   const handleSalvar = () => {
-    salvarCenario(gerarTitulo(), parametros, resultado);
+    const titulo = gerarTitulo();
+    salvarCenario(titulo, parametros, resultado);
     setNomeCenario('');
-    notificar('Cenário salvo no Painel');
+    dispararConfirmacao(titulo, 'salvo');
   };
 
   const handleFixar = () => {
-    definirMetaAtiva(gerarTitulo(), parametros, resultado);
-    notificar('Fixado no Painel');
+    const titulo = gerarTitulo();
+    definirMetaAtiva(titulo, parametros, resultado);
+    dispararConfirmacao(titulo, 'fixado');
   };
 
   const parametrosCompartilhamento = {
@@ -212,17 +224,7 @@ export default function Simulador() {
         categoria="Simulador de Patrimônio"
         titulo="Juros Compostos"
         descricao="Simule rendimentos indexados ao CDI, IPCA+ ou taxa fixa, com cálculo real de IR regressivo por aporte."
-        acoes={
-          <div className="flex items-center gap-2.5">
-            {feedback && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/12 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
-                <Check size={14} />
-                {feedback}
-              </span>
-            )}
-            <BotaoCompartilhar parametros={parametrosCompartilhamento} />
-          </div>
-        }
+        acoes={<BotaoCompartilhar parametros={parametrosCompartilhamento} />}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-7 items-start">
@@ -452,26 +454,91 @@ export default function Simulador() {
               placeholder="Dar um nome a este cenário (opcional)"
               value={nomeCenario}
               onChange={(e) => setNomeCenario(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSalvar();
+              }}
               className="w-full rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-950/60 py-2.5 px-3.5 text-xs font-medium text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 outline-none focus:border-emerald-500"
             />
             <div className="grid grid-cols-2 gap-2.5">
               <button
                 type="button"
                 onClick={handleSalvar}
-                className="inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border border-slate-200 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800 text-xs font-bold text-slate-700 dark:text-zinc-200 transition-colors cursor-pointer"
+                className={`inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border text-xs font-bold transition-colors cursor-pointer ${
+                  confirmacaoPainel?.acao === 'salvo'
+                    ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                    : 'border-slate-200 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-200'
+                }`}
               >
-                <Bookmark size={14} />
-                Salvar Cenário
+                {confirmacaoPainel?.acao === 'salvo' ? (
+                  <>
+                    <Check size={14} />
+                    Cenário Salvo!
+                  </>
+                ) : (
+                  <>
+                    <Bookmark size={14} />
+                    Salvar Cenário
+                  </>
+                )}
               </button>
               <button
                 type="button"
                 onClick={handleFixar}
                 className="inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
               >
-                <Pin size={14} />
-                Fixar no Painel
+                {confirmacaoPainel?.acao === 'fixado' ? (
+                  <>
+                    <Check size={14} />
+                    Fixado!
+                  </>
+                ) : (
+                  <>
+                    <Pin size={14} />
+                    Fixar no Painel
+                  </>
+                )}
               </button>
             </div>
+
+            {confirmacaoPainel && (
+              <div className="rounded-2xl border border-emerald-500/35 bg-emerald-500/[0.08] dark:bg-emerald-500/12 p-3.5 space-y-2.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                      <Check size={12} strokeWidth={3} />
+                    </span>
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                      {confirmacaoPainel.acao === 'salvo'
+                        ? `"${confirmacaoPainel.titulo}" salvo!`
+                        : `"${confirmacaoPainel.titulo}" fixado como principal!`}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmacaoPainel(null)}
+                    className="text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 cursor-pointer shrink-0"
+                    aria-label="Fechar aviso"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between gap-2 pt-0.5">
+                  <span className="text-[11px] text-slate-600 dark:text-zinc-300">
+                    {totalCenariosSalvos > 0
+                      ? `${totalCenariosSalvos} ${totalCenariosSalvos === 1 ? 'cenário salvo' : 'cenários salvos'}`
+                      : 'Pronto para visualizar no Painel'}
+                  </span>
+                  <Link
+                    to="/dashboard"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors shrink-0"
+                  >
+                    Abrir Painel
+                    <ArrowRight size={13} />
+                  </Link>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -706,6 +773,30 @@ export default function Simulador() {
           </div>
         </div>
       </div>
+      {confirmacaoPainel && (
+        <div className="fixed bottom-5 right-5 z-40 max-w-sm rounded-2xl border border-emerald-500/40 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md p-4 shadow-xl flex items-center gap-3.5">
+          <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
+            <Check size={18} strokeWidth={2.5} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-extrabold text-slate-900 dark:text-white truncate">
+              {confirmacaoPainel.acao === 'salvo'
+                ? 'Cenário salvo com sucesso!'
+                : 'Projeção fixada no Painel!'}
+            </p>
+            <p className="text-[11px] text-slate-500 dark:text-zinc-400 truncate mt-0.5">
+              {confirmacaoPainel.titulo}
+            </p>
+          </div>
+          <Link
+            to="/dashboard"
+            className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-950 text-xs font-bold transition-colors shrink-0"
+          >
+            Ver Painel
+            <ArrowRight size={13} />
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

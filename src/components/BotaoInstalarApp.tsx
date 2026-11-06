@@ -6,7 +6,11 @@ interface EventoInstalacaoPwa extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
-export function BotaoInstalarApp() {
+interface PropriedadesBotaoInstalar {
+  expandido?: boolean;
+}
+
+export function BotaoInstalarApp({ expandido = false }: PropriedadesBotaoInstalar) {
   const [eventoInstalacao, setEventoInstalacao] = useState<EventoInstalacaoPwa | null>(
     null
   );
@@ -43,16 +47,28 @@ export function BotaoInstalarApp() {
     }
   };
 
+  if (expandido) {
+    return (
+      <button
+        type="button"
+        onClick={() => void instalarAplicativo()}
+        className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-emerald-500/35 bg-emerald-500/10 hover:bg-emerald-500/18 text-emerald-700 dark:text-emerald-300 text-xs font-bold transition-colors cursor-pointer"
+      >
+        <Download size={14} />
+        <span>Instalar CalkPro no Dispositivo</span>
+      </button>
+    );
+  }
+
   return (
     <button
       type="button"
       onClick={() => void instalarAplicativo()}
-      title="Instalar Calk-Pro no dispositivo"
-      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-emerald-500/35 bg-emerald-500/10 hover:bg-emerald-500/18 text-emerald-700 dark:text-emerald-300 text-xs font-bold transition-colors cursor-pointer"
+      title="Instalar CalkPro no dispositivo"
+      aria-label="Instalar aplicativo"
+      className="p-2 rounded-full border border-emerald-500/35 bg-emerald-500/10 hover:bg-emerald-500/18 text-emerald-700 dark:text-emerald-300 transition-colors cursor-pointer"
     >
-      <Download size={13} />
-      <span className="hidden sm:inline">Instalar App</span>
+      <Download size={15} />
     </button>
   );
 }
-

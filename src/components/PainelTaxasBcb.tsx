@@ -50,48 +50,29 @@ export function PainelTaxasBcb() {
 
   return (
     <div className="relative">
-      <div className="inline-flex items-center gap-1 rounded-full border border-slate-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900 pl-3 pr-2 py-1.5 shadow-2xs text-xs numeros-tabulares">
-        <button
-          type="button"
-          onClick={alternarPainel}
-          className="flex items-center gap-2 text-slate-600 dark:text-zinc-300 cursor-pointer"
-        >
-          <span className="relative flex h-2 w-2">
-            {taxasMercado.modoAutomaticoBcb && (
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-            )}
-            <span
-              className={`relative inline-flex rounded-full h-2 w-2 ${
-                taxasMercado.modoAutomaticoBcb ? 'bg-emerald-500' : 'bg-amber-500'
-              }`}
-            />
-          </span>
-          <span>
-            CDI{' '}
-            <strong className="font-bold text-slate-900 dark:text-white">
-              {formatarPercentual(taxasMercado.cdiAnual)}
-            </strong>
-          </span>
-          <span className="hidden xl:inline text-slate-300 dark:text-zinc-700">·</span>
-          <span className="hidden xl:inline">
-            IPCA{' '}
-            <strong className="font-bold text-slate-900 dark:text-white">
-              {formatarPercentual(taxasMercado.ipcaAnual)}
-            </strong>
-          </span>
-          <ChevronDown size={13} className="text-slate-400" />
-        </button>
-
-        <button
-          type="button"
-          onClick={() => void forcarSincronizacao()}
-          disabled={sincronizandoBcb}
-          title="Sincronizar agora com o Banco Central"
-          className="p-1 rounded-full text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors cursor-pointer disabled:opacity-40"
-        >
-          <RefreshCw size={12} className={sincronizandoBcb ? 'animate-spin' : ''} />
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={alternarPainel}
+        className="inline-flex items-center gap-2 rounded-full border border-slate-200/80 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 hover:bg-slate-50 dark:hover:bg-zinc-800/80 px-3 py-1.5 text-xs text-slate-600 dark:text-zinc-300 transition-colors cursor-pointer numeros-tabulares"
+      >
+        <span
+          className={`inline-flex rounded-full h-2 w-2 ${
+            taxasMercado.modoAutomaticoBcb ? 'bg-emerald-500' : 'bg-amber-500'
+          }`}
+        />
+        <span>
+          CDI{' '}
+          <strong className="font-bold text-slate-900 dark:text-white">
+            {formatarPercentual(taxasMercado.cdiAnual)}
+          </strong>
+        </span>
+        <ChevronDown
+          size={13}
+          className={`text-slate-400 transition-transform duration-200 ${
+            aberto ? 'rotate-180' : ''
+          }`}
+        />
+      </button>
 
       {aberto && (
         <>
@@ -119,13 +100,25 @@ export function PainelTaxasBcb() {
                     : 'Valores customizados para suas simulações'}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setAberto(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 cursor-pointer"
-              >
-                <X size={16} />
-              </button>
+
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => void forcarSincronizacao()}
+                  disabled={sincronizandoBcb}
+                  title="Sincronizar agora com o Banco Central"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer disabled:opacity-40"
+                >
+                  <RefreshCw size={14} className={sincronizandoBcb ? 'animate-spin' : ''} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAberto(false)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 cursor-pointer"
+                >
+                  <X size={15} />
+                </button>
+              </div>
             </div>
 
             {erroBcb && <p className="text-xs text-rose-500">{erroBcb}</p>}

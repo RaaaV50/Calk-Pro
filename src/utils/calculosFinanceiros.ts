@@ -1,4 +1,5 @@
 import type {
+  FrequenciaAmortizacaoExtra,
   ItemComparativoRendaFixa,
   ModoUsufruto,
   ParametrosSimulacao,
@@ -480,12 +481,14 @@ export function calcularFinanciamentoCompleto(dados: {
   valorEntrada: number;
   taxaJurosAnual: number;
   prazoAnos: number;
-  amortizacaoExtraMensal: number;
+  amortizacaoExtra: number;
+  frequenciaExtra?: FrequenciaAmortizacaoExtra;
 }): ResultadoFinanciamento {
   const valorFinanciado = Math.max(0, dados.valorBem - dados.valorEntrada);
   const prazoOriginalMeses = Math.max(1, Math.min(480, Math.round(dados.prazoAnos * 12)));
   const taxaMensal = taxaAnualParaMensal(dados.taxaJurosAnual);
-  const extraMensal = Math.max(0, dados.amortizacaoExtraMensal);
+  const valorExtra = Math.max(0, dados.amortizacaoExtra);
+  const frequencia = dados.frequenciaExtra ?? 'mensal';
 
   const amortizacaoSacFixa = valorFinanciado / prazoOriginalMeses;
   const parcelaFixaPrice =
@@ -497,16 +500,21 @@ export function calcularFinanciamentoCompleto(dados: {
   let saldoSac = valorFinanciado;
   let saldoPrice = valorFinanciado;
   let saldoSacExtra = valorFinanciado;
+  let saldoPriceExtra = valorFinanciado;
 
   let totalSac = 0;
   let totalPrice = 0;
   let totalSacExtra = 0;
+  let totalPriceExtra = 0;
 
   let primeiraSac = 0;
   let ultimaSac = 0;
   let primeiraSacExtra = 0;
   let ultimaSacExtra = 0;
-  let mesesSacExtra = valorFinanciado > 0 ? 0 : 0;
+  let primeiraPriceExtra = 0;
+  let ultimaPriceExtra = 0;
+  let mesesSacExtra = 0;
+  let mesesPriceExtra = 0;
 
   const evolucaoSaldo: ResultadoFinanciamento['evolucaoSaldo'] = [
     {
@@ -514,10 +522,19 @@ export function calcularFinanciamentoCompleto(dados: {
       saldoSac: valorFinanciado,
       saldoPrice: valorFinanciado,
       saldoSacExtra: valorFinanciado,
+      saldoPriceExtra: valorFinanciado,
     },
   ];
 
   for (let mes = 1; mes <= prazoOriginalMeses; mes++) {
+    const aplicarExtraNoMes =
+      valorExtra > 0 &&
+      (frequencia === 'mensal' ||
+        (frequencia === 'anual' && mes % 12 === 0) ||
+        (frequencia === 'bienal' && mes % 24 === 0));
+
+    const extraDoMes = aplicarExtraNoMes ? valorExtra : 0;
+
     if (saldoSac > 0) {
       const juros = saldoSac * taxaMensal;
       const parcela = amortizacaoSacFixa + juros;
@@ -536,7 +553,7 @@ export function calcularFinanciamentoCompleto(dados: {
 
     if (saldoSacExtra > 0.01) {
       const juros = saldoSacExtra * taxaMensal;
-      const amortizacaoDesejada = amortizacaoSacFixa + extraMensal;
+      const amortizacaoDesejada = amortizacaoSacFixa + extraDoMes;
       const amortizacaoEfetiva = Math.min(saldoSacExtra, amortizacaoDesejada);
       const desembolsoMes = amortizacaoEfetiva + juros;
       saldoSacExtra = Math.max(0, saldoSacExtra - amortizacaoEfetiva);
@@ -546,12 +563,26 @@ export function calcularFinanciamentoCompleto(dados: {
       ultimaSacExtra = desembolsoMes;
     }
 
+    if (saldoPriceExtra > 0.01) {
+      const juros = saldoPriceExtra * taxaMensal;
+      const amortizacaoNormal = Math.max(0, parcelaFixaPrice - juros);
+      const amortizacaoDesejada = amortizacaoNormal + extraDoMes;
+      const amortizacaoEfetiva = Math.min(saldoPriceExtra, amortizacaoDesejada);
+      const desembolsoMes = amortizacaoEfetiva + juros;
+      saldoPriceExtra = Math.max(0, saldoPriceExtra - amortizacaoEfetiva);
+      totalPriceExtra += desembolsoMes;
+      mesesPriceExtra = mes;
+      if (mes === 1) primeiraPriceExtra = desembolsoMes;
+      ultimaPriceExtra = desembolsoMes;
+    }
+
     if (mes % 12 === 0 || mes === prazoOriginalMeses) {
       evolucaoSaldo.push({
         rotulo: mes % 12 === 0 ? `${mes / 12}a` : `${(mes / 12).toFixed(1)}a`,
         saldoSac,
         saldoPrice,
         saldoSacExtra,
+        saldoPriceExtra,
       });
     }
   }
@@ -564,14 +595,14 @@ export function calcularFinanciamentoCompleto(dados: {
       ultimaParcela: ultimaSac,
       totalPago: totalSac,
       totalJuros: Math.max(0, totalSac - valorFinanciado),
-      mesesQuitacao: prazoOriginalMeses,
+      mesesQuitacao: valorFinanciado > 0 ? prazoOriginalMeses : 0,
     },
     price: {
       primeiraParcela: parcelaFixaPrice,
       ultimaParcela: parcelaFixaPrice,
       totalPago: totalPrice,
       totalJuros: Math.max(0, totalPrice - valorFinanciado),
-      mesesQuitacao: prazoOriginalMeses,
+      mesesQuitacao: valorFinanciado > 0 ? prazoOriginalMeses : 0,
     },
     sacComExtra: {
       primeiraParcela: primeiraSacExtra,
@@ -580,9 +611,20 @@ export function calcularFinanciamentoCompleto(dados: {
       totalJuros: Math.max(0, totalSacExtra - valorFinanciado),
       mesesQuitacao: mesesSacExtra,
     },
+    priceComExtra: {
+      primeiraParcela: primeiraPriceExtra,
+      ultimaParcela: ultimaPriceExtra,
+      totalPago: totalPriceExtra,
+      totalJuros: Math.max(0, totalPriceExtra - valorFinanciado),
+      mesesQuitacao: mesesPriceExtra,
+    },
     economiaSacSobrePrice: Math.max(0, totalPrice - totalSac),
-    economiaAmortizacaoExtra: Math.max(0, totalSac - totalSacExtra),
-    mesesEconomizadosExtra: Math.max(0, prazoOriginalMeses - mesesSacExtra),
+    economiaExtraSac: Math.max(0, totalSac - totalSacExtra),
+    economiaExtraPrice: Math.max(0, totalPrice - totalPriceExtra),
+    mesesEconomizadosSac:
+      valorFinanciado > 0 ? Math.max(0, prazoOriginalMeses - mesesSacExtra) : 0,
+    mesesEconomizadosPrice:
+      valorFinanciado > 0 ? Math.max(0, prazoOriginalMeses - mesesPriceExtra) : 0,
     evolucaoSaldo,
   };
 }
@@ -671,22 +713,19 @@ export function calcularMetaReversa(dados: {
 
 export function converterTaxasEquivalentes(dados: {
   taxaInformada: number;
-  periodoOrigem: 'anual' | 'mensal' | 'diaria';
+  periodoOrigem: 'anual' | 'mensal';
   inflacaoAnual: number;
 }) {
-  const valor = dados.taxaInformada / 100;
-  let taxaAnualDecimal = 0;
+  const taxaLimitada =
+    dados.periodoOrigem === 'mensal'
+      ? Math.min(30, Math.max(-50, dados.taxaInformada))
+      : Math.min(1000, Math.max(-90, dados.taxaInformada));
 
-  if (dados.periodoOrigem === 'anual') {
-    taxaAnualDecimal = valor;
-  } else if (dados.periodoOrigem === 'mensal') {
-    taxaAnualDecimal = Math.pow(1 + valor, 12) - 1;
-  } else {
-    taxaAnualDecimal = Math.pow(1 + valor, 252) - 1;
-  }
+  const valor = taxaLimitada / 100;
+  const taxaAnualDecimal =
+    dados.periodoOrigem === 'anual' ? valor : Math.pow(1 + valor, 12) - 1;
 
   const taxaMensalDecimal = Math.pow(1 + Math.max(-0.99, taxaAnualDecimal), 1 / 12) - 1;
-  const taxaDiariaDecimal = Math.pow(1 + Math.max(-0.99, taxaAnualDecimal), 1 / 252) - 1;
   const taxaRealAnualDecimal =
     (1 + taxaAnualDecimal) / (1 + Math.max(0, dados.inflacaoAnual) / 100) - 1;
 
@@ -695,8 +734,8 @@ export function converterTaxasEquivalentes(dados: {
   return {
     anual: anualPercentual,
     mensal: taxaMensalDecimal * 100,
-    diariaUtil: taxaDiariaDecimal * 100,
     realAnual: taxaRealAnualDecimal * 100,
+    foiLimitada: taxaLimitada !== dados.taxaInformada,
     equivalenciaLiquidaPorPrazo: [
       { prazo: 'Até 180 dias (22,5% IR)', liquida: anualPercentual * (1 - 0.225), brutaNecessariaParaEmpatarIsento: anualPercentual / (1 - 0.225) },
       { prazo: '181 a 360 dias (20,0% IR)', liquida: anualPercentual * (1 - 0.2), brutaNecessariaParaEmpatarIsento: anualPercentual / (1 - 0.2) },
